@@ -11,12 +11,12 @@ from .mapping import NeuronInputs, ImageMapping, generate_inputs_from_filters
 
 # Specify the items to expose in * imports
 __all__ = [
-    'GaborFilter',
-    'GaborFilters',
-    'ConvLayer',
-    'ConvImage',
-    'convolve_dataset_with_gabor_filters',
-    'ImageMapping',
-    'NeuronInputs',
-    'generate_inputs_from_filters'
+    "GaborFilter",
+    "GaborFilters",
+    "ConvLayer",
+    "ConvImage",
+    "convolve_dataset_with_gabor_filters",
+    "ImageMapping",
+    "NeuronInputs",
+    "generate_inputs_from_filters",
 ]
