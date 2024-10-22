@@ -241,6 +241,9 @@ class NeuronParameters:
         self.tau_ie = tau_ie
         self.tau_ii = tau_ii
 
+        # Assign a list to keep track of all groups made with these specs
+        self.neuron_groups = []
+
     def check_valid_parameters(self, **params):
         """
         Checks if all provided parameters are valid (non-None).
@@ -435,9 +438,10 @@ class NeuronSpecs:
             neurons.tau_ii = self.parameters.tau_ii
 
         # Optionally assign x and y coordinates if spatial mapping is necessary
+        self.neuron_groups.append(neurons)
         self.add_x_and_y(neurons)
 
-    def add_x_and_y(self, neurons):
+    def add_x_and_y(self, neurons, size):
         """
         Assigns x and y coordinates to neurons in the grid (if necessary).
         The actual implementation for spatial assignments is yet to be added.
@@ -447,15 +451,20 @@ class NeuronSpecs:
         neurons : NeuronGroup
             The neuron group for which x, y coordinates are to be set.
         """
+        x_coords_inhib = np.array([i // size for i in range(int(size**2))])
+        y_coords_inhib = np.array([i % size for i in range(int(size**2))])
+        neurons.x = x_coords_inhib
+        neurons.y = y_coords_inhib
+
         pass
 
 
-def create_synapses():
+def create_synapses(n_layers):
     """
     Creates synapses between neuron groups.
     Currently works for networks with excitatory -> inhibitory,
     inhibitory -> excitatory, and feedforward connections between excitatory neurons in different layers.
-
+    create_neuron_groups must have been run for this to work
     To be implemented with further synaptic models.
     """
     pass

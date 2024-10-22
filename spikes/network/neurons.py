@@ -1,177 +1,306 @@
-from brian2 import *
-
-# Equations for simple LIF neuron model used for testing basic structure
-eqs = """
-    dv/dt = (I - v) / (10*ms) : 1  # Simple leaky integrate-and-fire model
-    I : 1  # Input current
-    x : 1  # Neuron x-coordinate
-    y : 1  # Neuron y-coordinate
+class NeuronParameters:
     """
+    Class to hold and validate neuron parameters.
+
+    Parameters:
+    -----------
+    cm : farad | Membrane capacitance.
+    g_leak : siemens
+        Leak conductance.
+    v_leak : volt
+        Leak potential.
+    v_threshold : volt
+        Firing threshold voltage.
+    v_reset : volt
+        Reset voltage after a spike.
+    v_rest : volt
+        Resting potential.
+    v_reversal_e : volt
+        Reversal potential for excitatory synapses.
+    v_reversal_i : volt
+        Reversal potential for inhibitory synapses.
+    sigma : volt
+        Noise term.
+    tau_m : second
+        Membrane time constant.
+    tau_ee : second
+        Time constant for excitatory-excitatory synapses.
+    tau_ei : second
+        Time constant for excitatory-inhibitory synapses.
+    tau_ie : second
+        Time constant for inhibitory-excitatory synapses.
+    tau_ii : second
+        Time constant for inhibitory-inhibitory synapses.
+    neuron_type : str
+        Type of neuron ('excitatory' or 'inhibitory').
+    """
+
+    def __init__(
+        self,
+        cm=None,
+        g_leak=None,
+        v_leak=None,
+        v_threshold=None,
+        v_reset=None,
+        v_rest=None,
+        v_reversal_e=None,
+        v_reversal_i=None,
+        sigma=None,
+        tau_m=None,
+        tau_ee=None,
+        tau_ei=None,
+        tau_ie=None,
+        tau_ii=None,
+        neuron_type=None,
+    ):
+        # Validate the parameters provided by calling the check_valid_parameters function
+        self.check_valid_parameters(
+            cm=cm,
+            g_leak=g_leak,
+            v_leak=v_leak,
+            v_threshold=v_threshold,
+            v_reset=v_reset,
+            v_rest=v_rest,
+            v_reversal_e=v_reversal_e,
+            v_reversal_i=v_reversal_i,
+            sigma=sigma,
+            tau_m=tau_m,
+            tau_ee=tau_ee,
+            tau_ei=tau_ei,
+            tau_ie=tau_ie,
+            tau_ii=tau_ii,
+            neuron_type=neuron_type,
+        )
+
+        # Assign validated parameters to the class attributes
+        self.cm = cm
+        self.g_leak = g_leak
+        self.v_leak = v_leak
+        self.v_threshold = v_threshold
+        self.v_reset = v_reset
+        self.v_rest = v_rest
+        self.v_reversal_e = v_reversal_e
+        self.v_reversal_i = v_reversal_i
+        self.sigma = sigma
+        self.tau_m = tau_m
+        self.tau_ee = tau_ee
+        self.tau_ei = tau_ei
+        self.tau_ie = tau_ie
+        self.tau_ii = tau_ii
+
+        # Assign a list to keep track of all groups made with these specs
+        self.neuron_groups = []
+
+    def check_valid_parameters(self, **params):
+        """
+        Checks if all provided parameters are valid (non-None).
+        Also warns if the neuron_type is unspecified but tau values imply a specific type.
+
+        Parameters:
+        -----------
+        params : dict
+            Dictionary of all neuron parameters to be validated.
+
+        Raises:
+        -------
+        ValueError if any required parameter is not specified.
+        """
+        # Explicitly remove "neuron_type" from the params dictionary before checking
+        neuron_type = params.pop("neuron_type", None)  # Remove and store neuron_type
+
+        # Ensure all parameters are provided (i.e., not None)
+        for name, param in params.items():
+            if param is None:
+                raise ValueError(f"Parameter {name} must be specified (non-None).")
+
+        # Warn or check based on tau values if neuron_type is unspecified or mismatched
+        if neuron_type is None:
+            if params["tau_ee"] and params["tau_ie"]:
+                raise Warning(
+                    f"Neuron type unspecified. It appears to be excitatory based on tau_ee ({params['tau_ee']}) and tau_ie ({params['tau_ie']}). "
+                    f"Consider specifying neuron_type as 'excitatory' for clarity."
+                )
+            elif params["tau_ei"] and params["tau_ii"]:
+                raise Warning(
+                    f"Neuron type unspecified. It appears to be inhibitory based on tau_ei ({params['tau_ei']}) and tau_ii ({params['tau_ii']}). "
+                    f"Consider specifying neuron_type as 'inhibitory' for clarity."
+                )
+
+        # Explicitly check if excitatory parameters are consistent
+        elif neuron_type == "excitatory":
+            if not (
+                params["tau_ee"]
+                and params["tau_ie"]
+                and not (params["tau_ii"] or params["tau_ei"])
+            ):
+                raise ValueError(
+                    f"Mismatch in conductance parameters for type 'excitatory'. Check the following:\n"
+                    f"tau_ee: {params['tau_ee']} [expected positive value]\n"
+                    f"tau_ei: {params['tau_ei']} [expected no value]\n"
+                    f"tau_ie: {params['tau_ie']} [expected positive value]\n"
+                    f"tau_ii: {params['tau_ii']} [expected no value]"
+                )
+
+        # Explicitly check if inhibitory parameters are consistent
+        elif neuron_type == "inhibitory":
+            if not (
+                params["tau_ei"]
+                and params["tau_ii"]
+                and not (params["tau_ie"] or params["tau_ee"])
+            ):
+                raise ValueError(
+                    f"Mismatch in conductance parameters for type 'inhibitory'. Check the following:\n"
+                    f"tau_ee: {params['tau_ee']} [expected no value]\n"
+                    f"tau_ei: {params['tau_ei']} [expected positive value]\n"
+                    f"tau_ie: {params['tau_ie']} [expected no value]\n"
+                    f"tau_ii: {params['tau_ii']} [expected positive value]"
+                )
 
 
 class NeuronSpecs:
-    def __init__(self, neuron_type="excitatory", params=None):
-        """
-        Initializes the neuron model based on the provided neuron type (excitatory, inhibitory, or input).
+    """
+    Class to hold neuron specifications such as type, size, and corresponding parameters.
 
-        Args:
-        neuron_type: Type of neuron model ("excitatory", "inhibitory", or "input"). Default is "excitatory".
-        params: Dictionary of custom neuron parameters. If None, default parameters are used.
-        """
-        # List of equations for different neuron types
-        equations_list = {
-            "excitatory": """
-            dv/dt = (V_rest-v)/tau_m + (ge*(V_reversal_e-v) + gi*(V_reversal_i-v))/(tau_m*g_leak) + sigma*xi*(tau_m)**-0.5 : volt
-            dge/dt = -ge/tau_ee : siemens
-            dgi/dt = -gi/tau_ie : siemens
-            Cm : farad  # Membrane capacitance
-            g_leak : siemens  # Leak conductance
-            V_rest : volt  # Resting potential
-            V_reversal_e : volt  # Reversal potential for excitatory synapses
-            V_reversal_i : volt  # Reversal potential for inhibitory synapses
-            sigma : volt  # Noise term
-            tau_m : second  # Membrane time constant
-            tau_ee : second  # Time constant for excitatory-excitatory synapses
-            tau_ie : second  # Time constant for inhibitory-excitatory synapses
-            x : integer (constant)
-            y : integer (constant)
-            """,
-            "inhibitory": """
-            dv/dt = (V_rest-v)/tau_m + (ge*(V_reversal_e-v) + gi*(V_reversal_i-v))/(tau_m * g_leak) + sigma*xi*(tau_m)**-0.5 : volt
-            dge/dt = -ge/tau_ei : siemens
-            dgi/dt = -gi/tau_ii : siemens
-            Cm : farad
-            g_leak : siemens
-            V_rest : volt
-            V_reversal_e : volt
-            V_reversal_i : volt
-            sigma : volt
-            tau_m : second
-            tau_ei : second
-            tau_ii : second
-            """,
-            "input": """
-            dv/dt = (V_rest-v)/tau_m + (ge*(V_reversal_e-v) + gi*(V_reversal_i-v))/(tau_m*g_leak) + sigma*xi*(tau_m)**-0.5 : volt
-            dge/dt = -ge/tau_ee : siemens
-            dgi/dt = -gi/tau_ie : siemens
-            Cm : farad
-            g_leak : siemens
-            V_rest : volt
-            V_reversal_e : volt
-            V_reversal_i : volt
-            sigma : volt
-            tau_m : second
-            tau_ee : second
-            tau_ie : second
-            x : integer (constant)
-            y : integer (constant)
-            """,
-        }
+    Parameters:
+    -----------
+    neuron_type : str
+        Type of the neuron ('excitatory', 'inhibitory', etc.).
+    size : int
+        Size of the neuron group (e.g., grid dimensions for spatially organized groups).
+    cm, g_leak, v_leak, v_threshold, etc. : various types
+        Neuron parameters required to initialize the group.
+    """
 
-        # Default parameters for excitatory neurons
-        default_params_excitatory = {
-            "Cm": 500 * pF,  # Membrane capacitance
-            "g_leak": 25 * nS,  # Leak conductance
-            "V_rest": -74 * mV,  # Resting membrane potential
-            "V_threshold": -53 * mV,  # Firing threshold
-            "V_reset": -57 * mV,  # Reset potential after spike
-            "V_reversal_e": 0 * mV,  # Excitatory reversal potential
-            "V_reversal_i": -70 * mV,  # Inhibitory reversal potential
-            "t_refract": 2 * ms,  # Refractory period after spike
-            "sigma": 0.015 * mV,  # Noise intensity
-            "tau_m": 20 * ms,  # Membrane time constant
-            "tau_ee": 2 * ms,  # Synaptic time constant for excitatory synapses
-            "tau_ie": 2
-            * ms,  # Synaptic time constant for inhibitory synapses onto excitatory neurons
-        }
-
-        # Default parameters for inhibitory neurons
-        default_params_inhibitory = {
-            "Cm": 214 * pF,  # Membrane capacitance
-            "g_leak": 28 * nS,  # Leak conductance
-            "V_rest": -82 * mV,  # Resting membrane potential
-            "V_threshold": -53 * mV,  # Firing threshold
-            "V_reset": -58 * mV,  # Reset potential after spike
-            "V_reversal_e": 0 * mV,  # Excitatory reversal potential
-            "V_reversal_i": -70 * mV,  # Inhibitory reversal potential
-            "t_refract": 2 * ms,  # Refractory period
-            "sigma": 0.015 * mV,  # Noise intensity
-            "tau_m": 12 * ms,  # Membrane time constant
-            "tau_ei": 5
-            * ms,  # Synaptic time constant for excitatory synapses onto inhibitory neurons
-            "tau_ii": 5
-            * ms,  # Synaptic time constant for inhibitory synapses onto inhibitory neurons
-        }
-
-        self.neuron_type = neuron_type  # Store the neuron type
-
-        # Select default parameters based on neuron type
-        if self.neuron_type == "excitatory" or self.neuron_type == "input":
-            default_params = default_params_excitatory
-        else:
-            default_params = default_params_inhibitory
-
-        # Update default parameters with user-provided custom parameters (if any)
-        if params is not None:
-            self.params = {
-                **default_params,
-                **params,
-            }  # Custom parameters override defaults
-        else:
-            self.params = default_params
-
-        print(self.params)
-
-        # Select the appropriate equation for the neuron type
-        self.equations = equations_list[neuron_type]
-
-    def create_neuron_layer(self, size):
-        """
-        Creates a NeuronGroup of specified size using the model parameters.
-
-        Args:
-        size: Dimension size for the neuron group (size x size neurons)
-
-        Returns:
-        NeuronGroup object containing the neurons
-        """
-        # Create the NeuronGroup using the selected equations and parameters
-        neurons = NeuronGroup(
-            N=int(size * size),  # Total number of neurons (size x size)
-            model=self.equations,  # Neuron equations
-            threshold="v > V_threshold",  # Spiking threshold condition
-            reset="v = V_reset",  # Reset condition after spike
-            refractory=self.params["t_refract"],  # Refractory period
-            method="linear",  # Numerical integration method
+    def __init__(
+        self,
+        neuron_type,
+        size,
+        cm=None,
+        g_leak=None,
+        v_leak=None,
+        v_threshold=None,
+        v_reset=None,
+        v_rest=None,
+        v_reversal_e=None,
+        v_reversal_i=None,
+        sigma=None,
+        tau_m=None,
+        tau_ee=None,
+        tau_ei=None,
+        tau_ie=None,
+        tau_ii=None,
+    ):
+        # Store neuron type and size, and validate neuron parameters
+        self.neuron_type = neuron_type
+        self.size = size
+        self.parameters = NeuronParameters(
+            cm,
+            g_leak,
+            v_leak,
+            v_threshold,
+            v_reset,
+            v_rest,
+            v_reversal_e,
+            v_reversal_i,
+            sigma,
+            tau_m,
+            tau_ee,
+            tau_ei,
+            tau_ie,
+            tau_ii,
+            neuron_type,
         )
 
-        # Assign parameter values to the NeuronGroup
-        neurons.Cm = self.params["Cm"]
-        neurons.g_leak = self.params["g_leak"]
-        neurons.V_rest = self.params["V_rest"]
-        neurons.sigma = self.params["sigma"]
-        neurons.ge = 0 * siemens  # Initial excitatory synaptic conductance
-        neurons.gi = 0 * siemens  # Initial inhibitory synaptic conductance
+    def create_neurons(self, layer, target=None):
+        """
+        Creates neurons in the given layer.
 
-        # Add x, y coordinates as attributes to the neuron group using add_attribute
-        neuron_indices = [(i, j) for i in range(size) for j in range(size)]
-        neurons.x = [i for i, j in neuron_indices]  # x-coordinate
-        neurons.y = [j for i, j in neuron_indices]  # y-coordinate
+        Parameters:
+        -----------
+        layer : int
+            The current layer number where neurons should be created.
+        target : optional
+            The target network to which the neurons should be added (optional).
 
-        # Set synaptic time constants based on neuron type
-        if self.neuron_type == "excitatory" or self.neuron_type == "input":
-            neurons.tau_ee = self.params[
-                "tau_ee"
-            ]  # Excitatory-excitatory time constant
-            neurons.tau_ie = self.params[
-                "tau_ie"
-            ]  # Inhibitory-excitatory time constant
-        elif self.neuron_type == "inhibitory":
-            neurons.tau_ei = self.params[
-                "tau_ei"
-            ]  # Excitatory-inhibitory time constant
-            neurons.tau_ii = self.params[
-                "tau_ii"
-            ]  # Inhibitory-inhibitory time constant
+        Returns:
+        --------
+        neurons : NeuronGroup
+            The instantiated neuron group with the parameters specified.
 
+        Comments:
+        --------
+        add these neurons to some list of neuron groups attached to this type as well, and on init add neuron groups to some buffer somewhere? IDK how that would work... look into it same as network baso
+        I guess on inport of module import that buffer so it hangs out in the background...
+        maybe add some list which captures all neurongroups made according to this template, perhaps include it in some mapping feature as well - say if we could add all
+        If the network has been explicitly created we can do this with target, otherwise it gets added to the global stuff - add functionality later
+        """
+        # If target is provided, handle functionality for adding neurons to a target later
+        if target:
+            return
+
+        # Retrieve the appropriate equation model for the neuron type
+        model = equations.neuron_equations[type]
+
+        # Create the neuron group with a threshold and reset condition
+        neurons = NeuronGroup(
+            N=int(self.size**2),
+            model=model,
+            threshold="v > V_threshold",
+            reset=self.parameters.v_reset,
+            name=f"{self.neuron_type}_layer_{layer}",
+        )
+
+        # Add additional parameters to the neuron group
+        self.add_variables(neurons)
         return neurons
+
+    def add_variables(self, neurons):
+        """
+        Adds parameters as variables to the neuron group.
+
+        Parameters:
+        -----------
+        neurons : NeuronGroup
+            The neuron group to which variables will be added.
+        """
+
+        # Assign membrane, conductance, and voltage-related parameters
+        neurons.Cm = self.parameters.cm
+        neurons.g_leak = self.parameters.g_leak
+        neurons.V_rest = self.parameters.v_rest
+        neurons.V_reset = self.parameters.v_reset
+        neurons.V_reversal_e = self.parameters.v_reversal_e
+        neurons.V_reversal_i = self.parameters.v_reversal_i
+        neurons.sigma = self.parameters.sigma
+        neurons.tau_m = self.parameters.tau_m
+
+        # Add synaptic time constants where applicable
+        if self.parameters.tau_ee:
+            neurons.tau_ee = self.parameters.tau_ee
+        if self.parameters.tau_ei:
+            neurons.tau_ei = self.parameters.tau_ei
+        if self.parameters.tau_ie:
+            neurons.tau_ie = self.parameters.tau_ie
+        if self.parameters.tau_ii:
+            neurons.tau_ii = self.parameters.tau_ii
+
+        # Optionally assign x and y coordinates if spatial mapping is necessary
+        self.neuron_groups.append(neurons)
+        self.add_x_and_y(neurons)
+
+    def add_x_and_y(self, neurons, size):
+        """
+        Assigns x and y coordinates to neurons in the grid (if necessary).
+        The actual implementation for spatial assignments is yet to be added.
+
+        Parameters:
+        -----------
+        neurons : NeuronGroup
+            The neuron group for which x, y coordinates are to be set.
+        """
+        x_coords_inhib = np.array([i // size for i in range(int(size**2))])
+        y_coords_inhib = np.array([i % size for i in range(int(size**2))])
+        neurons.x = x_coords_inhib
+        neurons.y = y_coords_inhib
+
+        pass
