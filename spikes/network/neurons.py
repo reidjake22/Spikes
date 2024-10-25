@@ -1,3 +1,10 @@
+from brian2 import *
+from equations import EquationsContainer
+
+# Initialize the global equations container | look into this
+equations = EquationsContainer()
+
+
 class NeuronParameters:
     """
     Class to hold and validate neuron parameters.
@@ -159,14 +166,14 @@ class NeuronParameters:
 
 class NeuronSpecs:
     """
-    Class to hold neuron specifications such as type, size, and corresponding parameters.
+    Class to hold neuron specifications such as type, length, and corresponding parameters.
 
     Parameters:
     -----------
     neuron_type : str
         Type of the neuron ('excitatory', 'inhibitory', etc.).
-    size : int
-        Size of the neuron group (e.g., grid dimensions for spatially organized groups).
+    length : int
+        length of the neuron group (e.g., grid dimensions for spatially organized groups).
     cm, g_leak, v_leak, v_threshold, etc. : various types
         Neuron parameters required to initialize the group.
     """
@@ -174,7 +181,7 @@ class NeuronSpecs:
     def __init__(
         self,
         neuron_type,
-        size,
+        length,
         cm=None,
         g_leak=None,
         v_leak=None,
@@ -190,9 +197,9 @@ class NeuronSpecs:
         tau_ie=None,
         tau_ii=None,
     ):
-        # Store neuron type and size, and validate neuron parameters
+        # Store neuron type and length, and validate neuron parameters
         self.neuron_type = neuron_type
-        self.size = size
+        self.length = length
         self.parameters = NeuronParameters(
             cm,
             g_leak,
@@ -234,24 +241,22 @@ class NeuronSpecs:
         maybe add some list which captures all neurongroups made according to this template, perhaps include it in some mapping feature as well - say if we could add all
         If the network has been explicitly created we can do this with target, otherwise it gets added to the global stuff - add functionality later
         """
-        # If target is provided, handle functionality for adding neurons to a target later
-        if target:
-            return
 
         # Retrieve the appropriate equation model for the neuron type
         model = equations.neuron_equations[type]
 
         # Create the neuron group with a threshold and reset condition
         neurons = NeuronGroup(
-            N=int(self.size**2),
+            N=int(self.length**2),
             model=model,
             threshold="v > V_threshold",
             reset=self.parameters.v_reset,
-            name=f"{self.neuron_type}_layer_{layer}",
+            name=f"{self.neuron_type}_layer_{layer+1}",
         )
-
         # Add additional parameters to the neuron group
         self.add_variables(neurons)
+        if target:
+            target.add(neurons)
         return neurons
 
     def add_variables(self, neurons):
@@ -286,21 +291,19 @@ class NeuronSpecs:
 
         # Optionally assign x and y coordinates if spatial mapping is necessary
         self.neuron_groups.append(neurons)
-        self.add_x_and_y(neurons)
+        self.add_rows_and_columns(neurons)
 
-    def add_x_and_y(self, neurons, size):
+    def add_rows_and_columns(self, neurons, length):
         """
-        Assigns x and y coordinates to neurons in the grid (if necessary).
+        Assigns rows and columns to neurons in the grid (if necessary).
         The actual implementation for spatial assignments is yet to be added.
 
         Parameters:
         -----------
         neurons : NeuronGroup
-            The neuron group for which x, y coordinates are to be set.
+            The neuron group for which indexes are to be set.
         """
-        x_coords_inhib = np.array([i // size for i in range(int(size**2))])
-        y_coords_inhib = np.array([i % size for i in range(int(size**2))])
-        neurons.x = x_coords_inhib
-        neurons.y = y_coords_inhib
-
-        pass
+        columns = np.tile(np.arange(length), length)
+        rows = np.repeat(np.arange(length), length)
+        neurons.column = columns
+        neurons.row = rows
