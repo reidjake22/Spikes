@@ -1,3 +1,38 @@
+"""
+Module Name: equations.py
+----------------------------------------------------
+
+Purpose: 
+--------
+    This module provides functionality for storing and managing different sets of equations for neurons, synapses,
+    and other models in a neural network. It includes a class to store and retrieve these equations, as well as
+    methods to add basic and custom equations.
+
+Functions:
+----------
+    None
+
+Classes:
+--------
+    EquationsContainer:
+        A container to store different sets of equations for neurons, synapses, and other models in the network.
+        Includes methods to initialize the container, add basic equations, and add custom equations.
+
+Variables:
+----------
+    None
+
+Example Usage:
+--------------
+    container = EquationsContainer()
+    custom_equation = Equations("dv/dt = -v/tau : volt")
+    container.add_equation("neuron", "custom_neuron", custom_equation)
+
+Notes:
+--------------------
+    This module relies on the Brian2 library for defining and managing equations.
+"""
+
 from brian2 import *
 
 
@@ -15,11 +50,18 @@ class EquationsContainer:
         Dictionary storing equations for different types of synapses (future expansion).
     other_equations : dict
         Dictionary storing other types of equations if needed.
+
+    Methods:
+    --------
+    add_basic_equations:
+        Adds basic neuron equations for excitatory, inhibitory, and input neurons to the neuron_equations dictionary.
+
     """
 
     def __init__(self):
         """
         Initialize empty dictionaries for neuron, synaptic, and other equations.
+        Adds basic equations for excitatory, inhibitory, and input neurons.
         """
         # Initialise the dictionaries for different equations
         self.neuron_equations = {}
@@ -43,10 +85,12 @@ class EquationsContainer:
             dgi/dt = -gi/tau_ie : siemens
             Cm : farad  # Membrane capacitance
             g_leak : siemens  # Leak conductance
+            V_reset: volt  # Reset potential
             V_rest : volt  # Resting potential
             V_reversal_e : volt  # Reversal potential for excitatory synapses
             V_reversal_i : volt  # Reversal potential for inhibitory synapses
-            't_refract': second # Refractory period
+            V_threshold: volt  # Threshold potential
+            t_refract: second # Refractory period
             sigma : volt  # Noise term
             tau_m : second  # Membrane time constant
             tau_ee : second  # Time constant for excitatory-excitatory synapses
@@ -65,8 +109,10 @@ class EquationsContainer:
             Cm : farad
             g_leak : siemens
             V_rest : volt
+            V_reset: volt
             V_reversal_e : volt
             V_reversal_i : volt
+            V_threshold: volt  # Threshold potential
             t_refract: second # Refractory period
             sigma : volt
             tau_m : second
@@ -88,6 +134,7 @@ class EquationsContainer:
             V_rest : volt
             V_reversal_e : volt
             V_reversal_i : volt
+            V_threshold: volt  # Threshold potential
             t_refract: second # Refractory period
             sigma : volt
             tau_m : second
@@ -111,8 +158,7 @@ class EquationsContainer:
                     lastupdate_post: second
                     """
         )
-        stdp_pre = Equations(
-            """
+        stdp_pre = """
                     ge_post += lambda_e * w
                     apre = apre * exp((lastupdate_post - t)/tau_pre)
                     lastupdate_pre = t
@@ -121,16 +167,13 @@ class EquationsContainer:
                     w += - apost * A_minus 
                     w = clip(w,0,1)
                     """
-        )
-        stdp_post = Equations(
-            """
+        stdp_post = """
                     apost = apost * exp((lastupdate_pre - t)/tau_post)
                     lastupdate_post = t
                     apost += alpha_D
                     w += apre * A_plus
                     w = clip(w,0,1)
                     """
-        )
         non_stdp_model = Equations(" ")
 
         # Define input neuron equations

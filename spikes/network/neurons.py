@@ -1,5 +1,39 @@
 from brian2 import *
-from equations import EquationsContainer
+
+# neurons.py
+"""
+Module Name: neurons.py
+----------------------------------------------------
+
+Purpose: 
+--------
+    This module provides classes and functions for defining and managing neuron parameters and specifications.
+    It includes functionality for validating neuron parameters, creating neuron groups, and adding variables to neuron groups.
+
+Classes:
+--------
+    NeuronParameters:
+        Class to hold and validate neuron parameters such as membrane capacitance, leak conductance, firing threshold voltage, etc.
+
+    NeuronSpecs:
+        Class to hold neuron specifications such as type, length, and corresponding parameters. It includes methods for creating neurons and adding variables to neuron groups.
+
+Variables:
+----------
+    equations (EquationsContainer):
+        An instance of EquationsContainer used to store global equations for neurons.
+
+Example Usage:
+--------------
+    TODO - add examples
+
+Notes:
+--------------------
+    TODO - add notes
+"""
+
+from .equations import EquationsContainer
+import warnings
 
 # Initialize the global equations container | look into this
 equations = EquationsContainer()
@@ -14,8 +48,6 @@ class NeuronParameters:
     cm : farad | Membrane capacitance.
     g_leak : siemens
         Leak conductance.
-    v_leak : volt
-        Leak potential.
     v_threshold : volt
         Firing threshold voltage.
     v_reset : volt
@@ -46,7 +78,6 @@ class NeuronParameters:
         self,
         cm=None,
         g_leak=None,
-        v_leak=None,
         v_threshold=None,
         v_reset=None,
         v_rest=None,
@@ -64,7 +95,6 @@ class NeuronParameters:
         self.check_valid_parameters(
             cm=cm,
             g_leak=g_leak,
-            v_leak=v_leak,
             v_threshold=v_threshold,
             v_reset=v_reset,
             v_rest=v_rest,
@@ -82,7 +112,6 @@ class NeuronParameters:
         # Assign validated parameters to the class attributes
         self.cm = cm
         self.g_leak = g_leak
-        self.v_leak = v_leak
         self.v_threshold = v_threshold
         self.v_reset = v_reset
         self.v_rest = v_rest
@@ -118,7 +147,7 @@ class NeuronParameters:
         # Ensure all parameters are provided (i.e., not None)
         for name, param in params.items():
             if param is None:
-                raise ValueError(f"Parameter {name} must be specified (non-None).")
+                warnings.warn(f"Parameter {name} must be specified (non-None).")
 
         # Warn or check based on tau values if neuron_type is unspecified or mismatched
         if neuron_type is None:
@@ -140,7 +169,7 @@ class NeuronParameters:
                 and params["tau_ie"]
                 and not (params["tau_ii"] or params["tau_ei"])
             ):
-                raise ValueError(
+                warnings.warn(
                     f"Mismatch in conductance parameters for type 'excitatory'. Check the following:\n"
                     f"tau_ee: {params['tau_ee']} [expected positive value]\n"
                     f"tau_ei: {params['tau_ei']} [expected no value]\n"
@@ -155,7 +184,7 @@ class NeuronParameters:
                 and params["tau_ii"]
                 and not (params["tau_ie"] or params["tau_ee"])
             ):
-                raise ValueError(
+                warnings.warn(
                     f"Mismatch in conductance parameters for type 'inhibitory'. Check the following:\n"
                     f"tau_ee: {params['tau_ee']} [expected no value]\n"
                     f"tau_ei: {params['tau_ei']} [expected positive value]\n"
@@ -174,7 +203,7 @@ class NeuronSpecs:
         Type of the neuron ('excitatory', 'inhibitory', etc.).
     length : int
         length of the neuron group (e.g., grid dimensions for spatially organized groups).
-    cm, g_leak, v_leak, v_threshold, etc. : various types
+    cm, g_leak, v_threshold, etc. : various types
         Neuron parameters required to initialize the group.
     """
 
@@ -184,13 +213,13 @@ class NeuronSpecs:
         length,
         cm=None,
         g_leak=None,
-        v_leak=None,
         v_threshold=None,
         v_reset=None,
         v_rest=None,
         v_reversal_e=None,
         v_reversal_i=None,
         sigma=None,
+        t_refract=None,  # NEED TO ADD THIS
         tau_m=None,
         tau_ee=None,
         tau_ei=None,
@@ -203,7 +232,6 @@ class NeuronSpecs:
         self.parameters = NeuronParameters(
             cm,
             g_leak,
-            v_leak,
             v_threshold,
             v_reset,
             v_rest,
@@ -217,8 +245,9 @@ class NeuronSpecs:
             tau_ii,
             neuron_type,
         )
+        self.neuron_groups = {}
 
-    def create_neurons(self, layer, target=None):
+    def create_neurons(self, layer, target_network=None):
         """
         Creates neurons in the given layer.
 
@@ -226,8 +255,8 @@ class NeuronSpecs:
         -----------
         layer : int
             The current layer number where neurons should be created.
-        target : optional
-            The target network to which the neurons should be added (optional).
+        target_network : optional
+            The target_network network to which the neurons should be added (optional).
 
         Returns:
         --------
@@ -239,24 +268,26 @@ class NeuronSpecs:
         add these neurons to some list of neuron groups attached to this type as well, and on init add neuron groups to some buffer somewhere? IDK how that would work... look into it same as network baso
         I guess on inport of module import that buffer so it hangs out in the background...
         maybe add some list which captures all neurongroups made according to this template, perhaps include it in some mapping feature as well - say if we could add all
-        If the network has been explicitly created we can do this with target, otherwise it gets added to the global stuff - add functionality later
+        If the network has been explicitly created we can do this with target_network, otherwise it gets added to the global stuff - add functionality later
         """
 
         # Retrieve the appropriate equation model for the neuron type
-        model = equations.neuron_equations[type]
-
+        model = equations.neuron_equations[self.neuron_type]
+        neuron_group_name = f"{self.neuron_type}_layer_{layer}"
         # Create the neuron group with a threshold and reset condition
         neurons = NeuronGroup(
             N=int(self.length**2),
             model=model,
             threshold="v > V_threshold",
-            reset=self.parameters.v_reset,
-            name=f"{self.neuron_type}_layer_{layer+1}",
+            reset="v = V_reset",
+            name=neuron_group_name,
         )
         # Add additional parameters to the neuron group
         self.add_variables(neurons)
-        if target:
-            target.add(neurons)
+        self.neuron_groups[neuron_group_name] = neurons
+        if not target_network == None:
+            print(f"adding layer{layer} neurons to network")
+            target_network.add(neurons)
         return neurons
 
     def add_variables(self, neurons):
@@ -276,6 +307,7 @@ class NeuronSpecs:
         neurons.V_reset = self.parameters.v_reset
         neurons.V_reversal_e = self.parameters.v_reversal_e
         neurons.V_reversal_i = self.parameters.v_reversal_i
+        neurons.V_threshold = self.parameters.v_threshold
         neurons.sigma = self.parameters.sigma
         neurons.tau_m = self.parameters.tau_m
 
@@ -290,8 +322,7 @@ class NeuronSpecs:
             neurons.tau_ii = self.parameters.tau_ii
 
         # Optionally assign x and y coordinates if spatial mapping is necessary
-        self.neuron_groups.append(neurons)
-        self.add_rows_and_columns(neurons)
+        self.add_rows_and_columns(neurons, self.length)
 
     def add_rows_and_columns(self, neurons, length):
         """

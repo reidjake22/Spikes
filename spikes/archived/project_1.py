@@ -3,9 +3,7 @@ import numpy as n
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-'''
-Take a weight sum it, take a weight sum it - look in that model instead of varying between 1 and 0 let's bake in the weights stuff
-'''
+
 class NeuronModel:
     '''A dataclass to hold everything important about a neuron type 
 
@@ -25,7 +23,8 @@ class NeuronModel:
 class SynapticModel:
     """ A dataclass to hold everything important about a synapse type
 
-    Basically, it will define synapses coming from either excitatory or inhibitory neurons. e refers to those which synapse onto excitatory cells;
+    Basically, it will define synapses coming from either excitatory or inhibitory neurons.
+    e refers to those which synapse onto excitatory cells;
     i refers to those which synapse onto inhibitory cells.
     Therefore, for excitatory neurons -> inhibitory neurons we should use the exc_syn_model.i
     """

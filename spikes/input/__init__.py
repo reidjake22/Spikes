@@ -7,7 +7,12 @@ from .gabor_filters import GaborFilter, GaborFilters
 from .convolution import ConvLayer, ConvImage, convolve_dataset_with_gabor_filters
 
 # Import from mapping.py
-from .mapping import NeuronInputs, ImageMapping, generate_inputs_from_filters
+from .mapping import (
+    NeuronInputs,
+    ImageMapping,
+    generate_inputs_from_filters,
+    generate_timed_input_from_input,
+)
 
 # Specify the items to expose in * imports
 __all__ = [
@@ -19,4 +24,5 @@ __all__ = [
     "ImageMapping",
     "NeuronInputs",
     "generate_inputs_from_filters",
+    "generate_timed_input_from_input",
 ]

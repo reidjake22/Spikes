@@ -1,19 +1,89 @@
 # mapping.py
+"""
+Module Name: mapping.py
+----------------------------------------------------
 
+Purpose: 
+--------
+    This module provides functionality for generating neuron input mappings from images using Gabor filters.
+    It includes classes and functions to create mappings, generate neuron inputs, and visualize the mappings.
+    The mappings are used to convert image data into neuron input data for further processing.
+
+Functions:
+----------
+    generate_inputs_from_filters:
+        Generates neuron inputs for a dataset by convolving images with
+    Gabor filters and mapping pixels to neurons.
+
+    generate_timed_input_from_input:
+        Generate a TimedArray from a 3D input array, where the input array
+    is assumed to be in the format (num_images, height, width).
+
+Classes:
+--------
+    NeuronInputs:
+        Class holding the 3D array of input along with the mapping that was
+    used to produce it.
+    
+    ImageMapping:
+        Class to generate and manage pixel mappings from image space to neuron
+    grid. Includes methods for generating mappings, generating neuron inputs, and visualizing mappings.
+    
+    OldImageMapping:
+        Class to generate and manage pixel mappings from image space to neuron
+    grid using an older method. Includes methods for generating mappings and generating neuron inputs.
+
+Variables:
+----------
+    None
+
+Example Usage:
+--------------
+    TODO - add examples
+
+
+Notes:
+--------------------
+    TODO - add notes
+
+"""
 import numpy as np
 import random
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
+from brian2 import TimedArray, hertz, ms
 
-from .convolution import (
-    convolve_dataset_with_gabor_filters,
-)  # Import from convolution.py
-from .gabor_filters import GaborFilters  # Import from gabor_filters.py
+from .convolution import convolve_dataset_with_gabor_filters
+
+from .gabor_filters import GaborFilters
 
 
 class NeuronInputs:
     """
-    Class holding the 3D array of input along with the mapping that was used to produce it
+    Overview
+    --------
+        Class to store neuron inputs along with the pixel mappings used to generate them.
+
+    Details:
+    --------
+        None
+
+    Attributes:
+    -----------
+        input_train (ndarray):
+            3D array of neuron inputs with shape (num_images, neuron_size, neuron_size).
+        mapping (ImageMapping):
+            ImageMapping object containing the pixel mappings used to generate the neuron inputs.
+    Methods:
+    --------
+        None
+
+
+    Example Usage:
+    --------
+        None
+
+    Notes:
     """
 
     def __init__(self, input_train, mapping):
@@ -25,6 +95,53 @@ class NeuronInputs:
 
 
 class ImageMapping:
+    """
+    Overview
+    --------
+        Class to generate and manage pixel mappings from image space to neuron grid.
+        Includes methods for generating mappings, generating neuron inputs, and visualizing mappings.
+    Details:
+    --------
+        None
+
+    Attributes:
+    -----------
+        image_size (int):
+            The size of the image (assumed square).
+        neuron_size (int):
+            The size of the neuron array (assumed square).
+        num_layers (int):
+            The number of layers in the convolved image stack (number of filters).
+        num_total_pixels (int):
+            The total number of unique pixels to sample across layers (default: 100).
+        radius (int):
+            The radius around the center of the pixel region for each neuron (default: 6).
+        shape (str):
+            The shape of the eligible region, either "circle" or "square" (default: "circle").
+        mapping (dict):
+            A dictionary where each key is a (neuron_x, neuron_y) tuple and the value is
+        a list of randomly selected (x, y, layer) coordinates.
+    Methods:
+    --------
+        generate_single_neuron_mapping:
+            generates a pixel mapping for a single neuron.
+
+        gen_mappings:
+            generates pixel mappings for all neurons in parallel.
+
+        gen_inputs:
+            generates neuron inputs from a 4D convolved dataset using precomputed 3D pixel mappings.
+
+        visualize_neuron_mappings:
+            visualizes the pixel mappings for a set of randomly selected neurons.
+    Example Usage:
+    --------------
+        None
+     Notes:
+    -------
+        None
+    """
+
     def __init__(
         self,
         image_size=None,
@@ -35,6 +152,31 @@ class ImageMapping:
         shape=None,
         mapping=None,
     ):
+        """
+        Initialize the ImageMapping object with the specified parameters & mapping or generate pixel mappings.
+
+        arguments:
+        ----------
+            image_size (int): The size of the image (assumed square).
+            neuron_size (int): The size of the neuron array (assumed square).
+            num_layers (int): The number of layers in the convolved image stack (number of filters).
+            num_total_pixels (int): The total number of unique pixels to sample across layers (default: 100).
+            radius (int): The radius around the center of the pixel region for each neuron (default: 6).
+            shape (str): The shape of the eligible region, either "circle" or "square" (default: "circle").
+            mapping (dict): A dictionary where each key is a (neuron_x, neuron_y) tuple and the value is a list of randomly selected (x, y, layer) coordinates.
+
+        returns:
+        --------
+            None
+
+        Example Usage:
+        --------------
+            None
+
+        Miscellaneous Notes:
+        --------------------
+            None
+        """
         self.image_size = image_size
         self.neuron_size = neuron_size
         self.num_layers = num_layers
@@ -61,6 +203,28 @@ class ImageMapping:
         radius,
         shape,
     ):
+        """
+        Generate a pixel mapping for a single neuron (neuron_x, neuron_y) in the neuron grid.
+
+        Arguments:
+        ----------
+        neuron_x (int): The x-coordinate of the neuron in the grid.
+        neuron_y (int): The y-coordinate of the neuron in the grid.
+        image_size (int): The size of the image (assumed square).
+        neuron_size (int): The size of the neuron array (assumed square).
+        num_layers (int): The number of layers in the convolved image stack (number of filters).
+        num_total_pixels (int): The total number of unique pixels to sample across layers.
+        radius (int): The radius around the center of the pixel region for each neuron.
+        shape (str): The shape of the eligible region, either "circle" or "square".
+
+        Returns:
+        --------
+        tuple: A tuple (neuron_x, neuron_y, selected_pixels) containing the neuron coordinates and the selected 3D pixels.
+
+        Notes:
+        ------
+        None
+        """
         scale = (
             image_size // neuron_size
         )  # Calculate scaling from neuron grid to image grid
@@ -167,7 +331,10 @@ class ImageMapping:
         neuron_size (int): The size of the neuron array (e.g., 14 for a 14x14 neuron grid).
 
         Returns:
-        3D ndarray: Neuron inputs with shape (num_images, neuron_size, neuron_size).
+        3D ndarray: Neuron inputs with shape (num_images, neuron_size, neuron_size) Here it's image_idx, neuron_y, neuron_x.
+
+        Notes:
+        Basically it flips between matrix and cartesian coordinates, this is a bit confusing but hopefully it works out. The main thing is making sure that the right inputs are going to the right neurons
         """
         num_images, image_height, image_width, num_filters = convolved_data.shape
         neuron_size = self.neuron_size
@@ -187,11 +354,13 @@ class ImageMapping:
                 # Loop over selected_pixels and append values from convolved_data
                 for layer, x, y in selected_pixels:
                     input_values = np.append(
-                        input_values, convolved_data[image_idx, x, y, layer]
+                        # convolved_data is in the format (num_images, height, width, num_filters)
+                        input_values,
+                        convolved_data[image_idx, y, x, layer],
                     )
 
                 # Add the input values to assign to the neuron, sum only positive values
-                neuron_inputs[image_idx, neuron_x, neuron_y] = (
+                neuron_inputs[image_idx, neuron_y, neuron_x] = (
                     np.sum(input_values[input_values > 0]) * 100
                 )  # Scale factor 100
         return neuron_inputs
@@ -427,6 +596,7 @@ def generate_inputs_from_filters(
 
     Args:
     dataset (ndarray): 3D array of images with shape (num_images, height, width).
+    Basically it's channel first
     gabor_filters (GaborFilters): GaborFilters object containing multiple filters.
     neuron_size (int): Size of the neuron grid (e.g., 14 for 14x14 neurons).
     image_size (int): Size of the input images (e.g., 28x28).
@@ -435,7 +605,7 @@ def generate_inputs_from_filters(
     shape (str): Shape of the region ("circle" or "square").
 
     Returns:
-    3D ndarray: Neuron inputs with shape (num_images, neuron_size, neuron_size).
+    NeuronInputs: NeuronInputs object containing the 3D array of neuron inputs and the pixel mappings.
     """
     # Step 1: Convolve the dataset with the Gabor filters
     convolved_data = convolve_dataset_with_gabor_filters(dataset, gabor_filters)
@@ -450,3 +620,32 @@ def generate_inputs_from_filters(
     neuron_train = image_mapping.gen_inputs(convolved_data)
     neuron_inputs = NeuronInputs(neuron_train, image_mapping)
     return neuron_inputs
+
+
+def generate_timed_input_from_input(
+    neuron_inputs: NeuronInputs, stimulus_exposure_time: int
+):
+    """
+    Generate a TimedArray from a 3D input array, where the input array is assumed to be
+    in the format (num_images, height, width).
+
+    Args:
+    input (ndarray): 3D input array with shape (num_images, height, width).
+
+    Returns:
+    TimedArray: TimedArray object with the input values.
+    """
+    neuron_input_train = neuron_inputs.input_train
+    index, height, width = neuron_input_train.shape
+    print(
+        f"the number of images for the input is {index}, the height is {height}, and the width is {width}"
+    )
+
+    # Gonna have to sort the dimensions here unfortunately - what a hassle
+    collapsed_input = np.array(
+        [neuron_input_train.flatten() for image in neuron_input_train]
+    )
+
+    collapsed_input_hz = collapsed_input * 100 * hertz
+    timed_input = TimedArray(collapsed_input_hz, dt=stimulus_exposure_time)
+    return timed_input

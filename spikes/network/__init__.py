@@ -7,14 +7,15 @@ from .equations import EquationsContainer
 from .neurons import NeuronSpecs
 
 # Import from synapses.py
-from .synapses import StdpSynapseSpecs, NonStdpSynapseSpecs, InputSynapseSpecs
+from .synapses import StdpSynapseSpecs, NonStdpSynapseSpecs  # InputSynapseSpecs
 
 # Import from create_network.py
 from .create_network import (
     create_neuron_groups,
     create_synapse_groups,
-    generate_inputs,
-    connect_to_inputs,
+    wire_input_layer,
+    # generate_inputs,
+    # connect_to_inputs,
 )
 
 # Specify the items to expose in * imports
@@ -23,9 +24,7 @@ __all__ = [
     "NeuronSpecs",
     "StdpSynapseSpecs",
     "NonStdpSynapseSpecs",
-    "InputSynapseSpecs",
+    "wire_input_layer",
     "create_neuron_groups",
     "create_synapse_groups",
-    "generate_inputs",
-    "connect_to_inputs",
 ]
