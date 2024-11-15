@@ -34,6 +34,7 @@ Notes:
 
 from .equations import EquationsContainer
 import warnings
+import seaborn as sns
 
 # Initialize the global equations container | look into this
 equations = EquationsContainer()
@@ -333,6 +334,28 @@ class NeuronSpecs:
         -----------
         neurons : NeuronGroup
             The neuron group for which indexes are to be set.
+
+        row, column coordinates look like this:
+        0   1   2   3   4   5   6   7   8   9   10  11  12  13  14  15  16
+        0,0 0,1 0,2 0,3 0,4 1,2 2,2 3,2 4,2 1,3 2,3 3,3 4,3 1,4 2,4 3,4 4,4
+
+        so arranged in an cartesian fashion it would look as follows:
+
+        13  14  15  16
+        9   10  11  12
+        5   6   7   8
+        1   2   3   4
+
+        However what we're doing is working with it in a ML context so it really looks like this:
+                Column
+                1     2       3       4
+            1   1     2       3       4
+
+        Row 2   5     6       7       8
+
+            3   9     10      11      12
+
+            4   13    14      15      16
         """
         columns = np.tile(np.arange(length), length)
         rows = np.repeat(np.arange(length), length)

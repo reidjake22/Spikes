@@ -47,6 +47,8 @@ Notes:
     TODO - add notes
 
 """
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 import numpy as np
 import random
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -76,7 +78,8 @@ class NeuronInputs:
             ImageMapping object containing the pixel mappings used to generate the neuron inputs.
     Methods:
     --------
-        None
+        visualise:
+            Visualize the neuron inputs as a heatmap animation.
 
 
     Example Usage:
@@ -89,6 +92,34 @@ class NeuronInputs:
     def __init__(self, input_train, mapping):
         self.input_train = input_train
         self.mapping = mapping
+
+    def visualise(self):
+        # Sample data for demonstration (replace 'neuron_inputs' with your actual data array)
+        fig, ax = plt.subplots()
+
+        # Initialize a placeholder heatmap (use the first frame of data)
+        heatmap = ax.imshow(self.input_train[0], cmap="hot", interpolation="nearest")
+        ax.set_title("Layer 1")
+
+        def update_heatmap(frame):
+            ax.clear()
+            # Update the data in the heatmap (not creating a new one)
+            heatmap = ax.imshow(
+                self.input_train[frame],
+                cmap="hot",
+                interpolation="nearest",
+            )
+            ax.set_title(f"Layer {frame + 1}")
+            return (heatmap,)
+
+        ani = animation.FuncAnimation(
+            fig, update_heatmap, frames=len(self.input_train), blit=True
+        )
+
+        # Adding a colorbar corresponding to the heatmap
+        plt.colorbar(heatmap, ax=ax)
+
+        plt.show()
 
 
 # Refactor later
@@ -646,6 +677,6 @@ def generate_timed_input_from_input(
         [neuron_input_train.flatten() for image in neuron_input_train]
     )
 
-    collapsed_input_hz = collapsed_input * 100 * hertz
+    collapsed_input_hz = collapsed_input * hertz
     timed_input = TimedArray(collapsed_input_hz, dt=stimulus_exposure_time)
     return timed_input

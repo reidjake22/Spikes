@@ -157,7 +157,7 @@ class SynapseSpecsBase(ABC):
         """
         self.synapse_type = params.get("synapse_type", None)
         self.params = SynapseParameters(**params)
-        self.synapse_objects = {}
+        self.synapse_objects = {}  # Stored according to the synapse name
 
     @abstractmethod
     def create_synapses(
@@ -233,9 +233,7 @@ class SynapseSpecsBase(ABC):
             column = efferent_group[j].column[0]
             # print(f"neuron locations: {row}, {column}")
             indexes = self._get_indexes(row, column, size_afferent, scale, radius)
-            print(
-                f"connecting the following neurons with postsynaptic neuron {j}: {indexes}"
-            )
+            # print(f"connecting the following neurons with postsynaptic neuron {j}: {indexes}")
             # print(efferent_group[j])
             # print(f"indexes: {indexes}")
             synapses.connect(i=indexes, j=j)
@@ -288,6 +286,7 @@ class SynapseSpecsBase(ABC):
             except Exception as e:
                 print(f"Error setting {param}: {e}")
                 pass
+        synapses.w = "rand()"
 
     import matplotlib.pyplot as plt
 
@@ -312,6 +311,7 @@ class SynapseSpecsBase(ABC):
         radius : int
             Radius around the efferent neuron to determine connected afferent neurons.
         """
+
         size_afferent = int(sqrt(afferent_group.N))
         size_efferent = int(sqrt(efferent_group.N))
         scale = size_afferent / size_efferent
@@ -419,6 +419,74 @@ class SynapseSpecsBase(ABC):
         plt.ioff()  # Disable interactive mode
         plt.show()
 
+    def plot_synapse_distribution(self, synapse_name):
+        """
+        Plots the distribution of synapse weights for a specific synapse object.
+
+        Parameters:
+        -----------
+        synapse_name : str
+            The name of the synapse object to plot the distribution for.
+        """
+        synapses = self.synapse_objects[synapse_name]
+        plt.figure(figsize=(6, 6))
+        plt.hist(synapses.w, bins=20, color="skyblue", edgecolor="black")
+        plt.title(f"Synapse Weight Distribution for {synapse_name}")
+        plt.xlabel("Synapse Weight")
+        plt.ylabel("Frequency")
+        plt.show()
+
+    def visualise_synapses(self, synapses: Synapses):
+        Ns = len(synapses.source)
+        Nt = len(synapses.target)
+        figure(figsize=(20, 10))
+        subplot(121)
+        plot(zeros(Ns), arange(Ns), "ok", ms=10)
+        plot(ones(Nt), arange(Nt), "ok", ms=10)
+        for i, j in zip(S.i, S.j):
+            plot([0, 1], [i, j], "-k")
+        xticks([0, 1], ["Source", "Target"])
+        ylabel("Neuron index")
+        xlim(-0.1, 1.1)
+        ylim(-1, max(Ns, Nt))
+        subplot(122)
+        plot(S.i, S.j, "ok")
+        xlim(-1, Ns)
+        ylim(-1, Nt)
+        xlabel("Source neuron index")
+        ylabel("Target neuron index")
+
+    def three_dim_visualise_synapses(self, synapses: Synapses):
+        Ns = len(synapses.source)
+        num_pre_neurons = len(synapses.N_incoming_pre)
+        len_pre = int(sqrt(num_pre_neurons))
+        Nt = len(synapses.target)
+        num_post_neurons = len(synapses.N_incoming_post)
+        len_post = int(sqrt(num_post_neurons))
+        s_i_column = synapses.i % len_pre
+        s_i_row = synapses.i // len_pre
+        s_j_column = synapses.j % len_post
+        s_j_row = synapses.j // len_post
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection="3d")
+        ax.scatter(
+            s_i_column, s_i_row, 0, c="blue", label="Pre-synaptic neurons", s=100
+        )  # Blue circles
+        ax.scatter(
+            s_j_column, s_j_row, 1, c="red", label="Post-synaptic neurons", s=100
+        )  # Red circles
+        for x1, y1, x2, y2 in zip(x_pre, y_pre, x_post, y_post):
+            ax.plot(
+                [x1, x2], [y1, y2], [0, 1], "-k", alpha=0.6
+            )  # Black lines with transparency
+
+        for x1, y1, x2, y2 in zip(x_pre, y_pre, x_post, y_post):
+            ax.plot(
+                [x1, x2], [y1, y2], [0, 1], "-k", alpha=0.6
+            )  # Black lines with transparency
+
+        plt.show()
+
 
 class StdpSynapseSpecs(SynapseSpecsBase):
 
@@ -460,6 +528,7 @@ class StdpSynapseSpecs(SynapseSpecsBase):
                     tau_c: second
                     tau_d: second
                     w: 1
+                    plasticity: 1
                     lastupdate_before: second
                     lastupdate_after: second
                     """
@@ -469,14 +538,14 @@ class StdpSynapseSpecs(SynapseSpecsBase):
                     lastupdate_before = t
                     apre += alpha_C
                     apre = clip(apre,0,1)
-                    w += - apost * A_minus 
+                    w += - apost * plasticity * A_minus 
                     w = clip(w,0,1)
                     """
         on_post = """
                     apost = apost * exp((lastupdate_before - t)/tau_d)
                     lastupdate_after = t
                     apost += alpha_D
-                    w += apre * A_plus
+                    w += apre * plasticity * A_plus
                     w = clip(w,0,1)
                     """
         synapses = Synapses(
@@ -524,7 +593,7 @@ class NonStdpSynapseSpecs(SynapseSpecsBase):
                     lambda_e: siemens
                     """
             on_pre = """
-                    ge_post += lambda_e * w
+                    ge_post += lambda_e
                     """
         elif afferent_group_specs.neuron_type == "inhibitory":
             model = """
@@ -532,7 +601,7 @@ class NonStdpSynapseSpecs(SynapseSpecsBase):
                     lambda_i: siemens
                     """
             on_pre = """
-                    gi_post += lambda_i * w
+                    gi_post += lambda_i
                     """
         else:
             raise ValueError("Unknown neuron type for non-STDP synapse")

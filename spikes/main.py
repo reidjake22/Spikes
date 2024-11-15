@@ -3,10 +3,11 @@
 from brian2 import *
 from network import *
 from input import *
+from run import *
 from tensorflow.keras.datasets import mnist
 
 
-def input_example():
+def input_example(num_inputs):
     # Exemplifies how to use the filter module
     import numpy as np
 
@@ -22,7 +23,7 @@ def input_example():
     (train_images, train_labels), (test_images, test_labels) = mnist.load_data()
 
     # Extract the first 30 images
-    num_images = 30
+    num_images = num_inputs
     dataset = train_images[:num_images]
 
     # Normalize the dataset
@@ -32,17 +33,53 @@ def input_example():
         gabor_filters,
         neuron_size=14,
         image_size=28,
-        num_total_pixels=201,
+        num_total_pixels=30,
         radius=8,
         shape="circle",
     )
     return neuron_inputs
 
+def three_dim_visualise_synapses(synapses: Synapses):
+    Ns = len(synapses.source)
+    num_pre_neurons = len(synapses.N_incoming_pre)
+    len_pre = int(sqrt(num_pre_neurons))
+    Nt = len(synapses.target)
+    num_post_neurons = len(synapses.N_incoming_post)
+    len_post = int(sqrt(num_post_neurons))
+    s_i_column = synapses.i % len_pre
+    s_i_row = synapses.i // len_pre
+    s_j_column = synapses.j % len_post
+    s_j_row = synapses.j // len_post
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection="3d")
+    ax.scatter(
+        s_i_column, s_i_row, 0, c="blue", label="Pre-synaptic neurons", s=100
+    )  # Blue circles
+    ax.scatter(
+        s_j_column, s_j_row, 1, c="red", label="Post-synaptic neurons", s=100
+    )  # Red circles
+    for x1, y1, x2, y2 in zip(x_pre, y_pre, x_post, y_post):
+        ax.plot([x1, x2], [y1, y2], [0, 1], "-k", alpha=0.6)  # Black lines with transparency
+
+    for x1, y1, x2, y2 in zip(x_pre, y_pre, x_post, y_post):
+        ax.plot([x1, x2], [y1, y2], [0, 1], "-k", alpha=0.6)  # Black lines with transparency
+
+    plt.show()
 
 def visnet():
     network = Network()
-    n_layers = 2  # Number of layers to create
+    on_plasticity = True
 
+    def toggle_plasticity(state):
+        if not isinstance(state, bool):
+            raise ValueError("State must be a boolean")
+        global on_plasticity
+        on_plasticity = state
+
+    n_layers = 2  # Number of layers to create
+    stimulus_length = 500 * ms
+    num_inputs = 30
+    
     # Currently length is stores as a parameter in the NeuronSpecs class
     # This is less than optimal, but it works for now
 
@@ -98,7 +135,7 @@ def visnet():
         lambda_i=0.1 * nS,
     )
 
-    input_lambda_e = 0.1 * nS
+    input_lambda_e = 1 * nS
 
     # Create Synapses
     create_neuron_groups(network, n_layers, exc_neuron_specs, inh_neuron_specs)
@@ -111,13 +148,22 @@ def visnet():
         stdp_synapse_specs,
         non_stdp_synapse_specs,
     )
-
     # Sort inputs
     print("Generating inputs")
     # Got to make sure this is defined globally - can it be added to the network/included globally
-    timed_input = generate_timed_input_from_input(input_example(), 500 * ms)
 
-    input_synapses = wire_input_layer(network, exc_neuron_specs, timed_input)
+    neuron_inputs = input_example(num_inputs)
+
+    neuron_inputs.visualise()
+
+    timed_input = generate_timed_input_from_input(neuron_inputs, stimulus_length)
+    epoch_length = stimulus_length * num_inputs
+    input_synapses = wire_input_layer(
+        network,
+        exc_neuron_specs,
+        timed_input,
+        epoch_length=epoch_length,
+    )
 
     print(
         r"""
@@ -137,15 +183,33 @@ def visnet():
 *   ██  ██ ██ ██         ██   ██ ███ ██  ██   ██ ██   ██  ██  ██     *
 *   ██   ████ ███████    ██    ███ ███    █████  ██   ██  ██    ██   *
 *                                                                    *
-*             ✨   BROUGHT TO YOU BY JAKE    ✨                       *
+*             ✨   BROUGHT TO YOU BY OCTNAI    ✨                     *
 **********************************************************************
     """
     )
-    print("\n\nbrought to you by Jake Reid\n\n")
-    network.run(
-        10000 * ms,
+    # SETUP MONITORS:
+
+    monitors = Monitors(network, n_layers)
+    # monitors.setup_monitors([1], "voltage")  # Cant monitor voltage of input layer
+    monitors.setup_excitatory_monitors([1], "spike")
+    monitors.toggle_monitoring(
+        [2], "spike", enable=False
+    )  # GONNA NEED TO SORT THAT TOO!
+    namespace = {
+        "input_lambda_e": input_lambda_e,
+        "timed_input": timed_input,
+        "epoch_length": epoch_length,
+    }
+    # TRAIN NETWORK:
+
+    run_training(network, namespace, stimulus_length, num_inputs, no_epochs=1)
+    # TEST NETWORK:
+    run_testing_epoch(monitors, network, namespace, stimulus_length, num_inputs)
+    print("analysing data")
+    monitors.animate_spike_heatmap(
+        1, "spike", num_inputs, stimulus_length, exc_neuron_specs.length
     )
-    # DONE!
+    layer_1_synapses = 
 
 
 if __name__ == "__main__":

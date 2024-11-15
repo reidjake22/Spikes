@@ -196,7 +196,9 @@ def create_synapse_groups(
         )
 
 
-def wire_input_layer(network: Network, exc_neuron_specs: NeuronSpecs, timed_input):
+def wire_input_layer(
+    network: Network, exc_neuron_specs: NeuronSpecs, timed_input, epoch_length
+):
     """
     Overview:
     --------
@@ -231,7 +233,9 @@ def wire_input_layer(network: Network, exc_neuron_specs: NeuronSpecs, timed_inpu
     exc_neuron_layer_1 = exc_neuron_specs.neuron_groups["excitatory_layer_1"]
     timed_input = timed_input
     poisson_neurons = PoissonGroup(
-        exc_neuron_layer_1.N, rates="timed_input(t,i)", name="poisson_layer_0"
+        exc_neuron_layer_1.N,
+        rates="timed_input((t%epoch_length),i)",  # let's the timed_input indefinitely loop I hope
+        name="poisson_layer_0",
     )
     network.add(poisson_neurons)
     input_synapses = Synapses(
