@@ -12,7 +12,7 @@ class GaborFilter:
     manipulating, and saving the Gabor filter based on the input parameters.
     """
 
-    def __init__(self, size, lambda_, beta, theta, psi, gamma):
+    def __init__(self, size, lambda_, beta, theta, psi, gamma, normalise=True):
         """
         Initialize a GaborFilter object with specific parameters.
 
@@ -30,7 +30,7 @@ class GaborFilter:
         self.theta = theta
         self.psi = psi
         self.gamma = gamma
-        self.filter_array = self._generate_filter()
+        self.filter_array = self._generate_filter(normalise)
 
     def _generate_meshgrid(self):
         """
@@ -43,7 +43,7 @@ class GaborFilter:
         y = np.linspace(-self.size // 2, self.size // 2 - 1, self.size)
         return np.meshgrid(x, y)
 
-    def _generate_filter(self):
+    def _generate_filter(self, normalise=True):
         """
         Generate the Gabor filter based on the object's parameters.
 
@@ -56,7 +56,11 @@ class GaborFilter:
         y_prime = -x * np.sin(self.theta) + y * np.cos(self.theta)
 
         # Compute sigma (standard deviation) for the Gaussian component
-        sigma = (self.lambda_ * (2**self.beta + 1)) / (np.pi * (2**self.beta - 1))
+        sigma = (
+            (self.lambda_ * (2**self.beta + 1))
+            / (np.pi * (2**self.beta - 1))
+            * np.sqrt(np.log(2) / 2)
+        )
 
         # Calculate the exponential (Gaussian) and cosine (sinusoidal) components
         exp_component = np.exp(
@@ -64,7 +68,13 @@ class GaborFilter:
         )
         cos_component = np.cos(2 * np.pi * x_prime / self.lambda_ + self.psi)
 
-        return exp_component * cos_component
+        filter = exp_component * cos_component
+        # Does this work?
+        if normalise:
+            filter -= np.mean(filter)
+            filter /= np.linalg.norm(filter)
+        print(filter)
+        return filter
 
     def save_as_image(self, directory):
         """

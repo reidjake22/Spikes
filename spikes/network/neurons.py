@@ -84,32 +84,17 @@ class NeuronParameters:
         v_rest=None,
         v_reversal_e=None,
         v_reversal_i=None,
+        v_reversal_a=None,
+        t_refract=None,
         sigma=None,
         tau_m=None,
         tau_ee=None,
         tau_ei=None,
         tau_ie=None,
         tau_ii=None,
+        tau_a=None,
         neuron_type=None,
     ):
-        # Validate the parameters provided by calling the check_valid_parameters function
-        self.check_valid_parameters(
-            cm=cm,
-            g_leak=g_leak,
-            v_threshold=v_threshold,
-            v_reset=v_reset,
-            v_rest=v_rest,
-            v_reversal_e=v_reversal_e,
-            v_reversal_i=v_reversal_i,
-            sigma=sigma,
-            tau_m=tau_m,
-            tau_ee=tau_ee,
-            tau_ei=tau_ei,
-            tau_ie=tau_ie,
-            tau_ii=tau_ii,
-            neuron_type=neuron_type,
-        )
-
         # Assign validated parameters to the class attributes
         self.cm = cm
         self.g_leak = g_leak
@@ -118,80 +103,70 @@ class NeuronParameters:
         self.v_rest = v_rest
         self.v_reversal_e = v_reversal_e
         self.v_reversal_i = v_reversal_i
+        self.v_reversal_a = v_reversal_a
+        self.t_refract = t_refract
         self.sigma = sigma
         self.tau_m = tau_m
-        self.tau_ee = tau_ee
-        self.tau_ei = tau_ei
-        self.tau_ie = tau_ie
-        self.tau_ii = tau_ii
-
+        self.tau_a = tau_a
+        for tau_name, tau_value in [
+            ("tau_ee", tau_ee),
+            ("tau_ei", tau_ei),
+            ("tau_ie", tau_ie),
+            ("tau_ii", tau_ii),
+            ("tau_a", tau_a),
+        ]:
+            setattr(self, tau_name, tau_value)  # Assign the attribute
+            # print(f"Assigned {tau_name}={tau_value}")  # Debugging output
         # Assign a list to keep track of all groups made with these specs
-        self.neuron_groups = []
+        self.check_valid_parameters(neuron_type)
 
-    def check_valid_parameters(self, **params):
-        """
-        Checks if all provided parameters are valid (non-None).
-        Also warns if the neuron_type is unspecified but tau values imply a specific type.
+    def check_valid_parameters(self, neuron_type):
+        required_params = [
+            "cm",
+            "g_leak",
+            "v_threshold",
+            "v_reset",
+            "v_rest",
+            "v_reversal_e",
+            "v_reversal_i",
+            "v_reversal_a",
+            "t_refract",
+            "sigma",
+            "tau_m",
+        ]
+        params_by_type = {
+            "e": {
+                "required": ["tau_ee", "tau_ie", "tau_a"],
+                "forbidden": ["tau_ei", "tau_ii"],
+            },
+            "i": {
+                "required": ["tau_ei", "tau_ii"],
+                "forbidden": ["tau_ee", "tau_ie", "tau_a"],
+            },
+        }
 
-        Parameters:
-        -----------
-        params : dict
-            Dictionary of all neuron parameters to be validated.
+        # Ensure all required parameters are provided (i.e., not None)
+        missing_params = [p for p in required_params if getattr(self, p) is None]
+        if missing_params:
+            warnings.warn(f"Missing required parameters: {', '.join(missing_params)}")
 
-        Raises:
-        -------
-        ValueError if any required parameter is not specified.
-        """
-        # Explicitly remove "neuron_type" from the params dictionary before checking
-        neuron_type = params.pop("neuron_type", None)  # Remove and store neuron_type
-
-        # Ensure all parameters are provided (i.e., not None)
-        for name, param in params.items():
-            if param is None:
-                warnings.warn(f"Parameter {name} must be specified (non-None).")
-
-        # Warn or check based on tau values if neuron_type is unspecified or mismatched
         if neuron_type is None:
-            if params["tau_ee"] and params["tau_ie"]:
-                raise Warning(
-                    f"Neuron type unspecified. It appears to be excitatory based on tau_ee ({params['tau_ee']}) and tau_ie ({params['tau_ie']}). "
-                    f"Consider specifying neuron_type as 'excitatory' for clarity."
-                )
-            elif params["tau_ei"] and params["tau_ii"]:
-                raise Warning(
-                    f"Neuron type unspecified. It appears to be inhibitory based on tau_ei ({params['tau_ei']}) and tau_ii ({params['tau_ii']}). "
-                    f"Consider specifying neuron_type as 'inhibitory' for clarity."
-                )
-
+            raise ValueError("Neuron type must be specified.")
         # Explicitly check if excitatory parameters are consistent
-        elif neuron_type == "excitatory":
-            if not (
-                params["tau_ee"]
-                and params["tau_ie"]
-                and not (params["tau_ii"] or params["tau_ei"])
-            ):
+        if neuron_type in params_by_type:
+            required = params_by_type[neuron_type]["required"]
+            forbidden = params_by_type[neuron_type]["forbidden"]
+            inconsistent = any(getattr(self, p) is None for p in required) or any(
+                getattr(self, p) for p in forbidden
+            )
+            if inconsistent:
                 warnings.warn(
-                    f"Mismatch in conductance parameters for type 'excitatory'. Check the following:\n"
-                    f"tau_ee: {params['tau_ee']} [expected positive value]\n"
-                    f"tau_ei: {params['tau_ei']} [expected no value]\n"
-                    f"tau_ie: {params['tau_ie']} [expected positive value]\n"
-                    f"tau_ii: {params['tau_ii']} [expected no value]"
+                    f"Mismatch in conductance parameters for type '{neuron_type}'. "
+                    f"Required: {', '.join(required)}; Forbidden: {', '.join(forbidden)}. "
+                    f"Check values: {', '.join(f'{p}={getattr(self, p)}' for p in required + forbidden)}"
                 )
-
-        # Explicitly check if inhibitory parameters are consistent
-        elif neuron_type == "inhibitory":
-            if not (
-                params["tau_ei"]
-                and params["tau_ii"]
-                and not (params["tau_ie"] or params["tau_ee"])
-            ):
-                warnings.warn(
-                    f"Mismatch in conductance parameters for type 'inhibitory'. Check the following:\n"
-                    f"tau_ee: {params['tau_ee']} [expected no value]\n"
-                    f"tau_ei: {params['tau_ei']} [expected positive value]\n"
-                    f"tau_ie: {params['tau_ie']} [expected no value]\n"
-                    f"tau_ii: {params['tau_ii']} [expected positive value]"
-                )
+        else:
+            raise ValueError(f"Invalid neuron_type: {neuron_type}. Must be 'e' or 'i'.")
 
 
 class NeuronSpecs:
@@ -219,13 +194,15 @@ class NeuronSpecs:
         v_rest=None,
         v_reversal_e=None,
         v_reversal_i=None,
+        v_reversal_a=None,
+        t_refract=None,
         sigma=None,
-        t_refract=None,  # NEED TO ADD THIS
         tau_m=None,
         tau_ee=None,
         tau_ei=None,
         tau_ie=None,
         tau_ii=None,
+        tau_a=None,
     ):
         # Store neuron type and length, and validate neuron parameters
         self.neuron_type = neuron_type
@@ -238,15 +215,36 @@ class NeuronSpecs:
             v_rest,
             v_reversal_e,
             v_reversal_i,
+            v_reversal_a,
+            t_refract,
             sigma,
             tau_m,
             tau_ee,
             tau_ei,
             tau_ie,
             tau_ii,
+            tau_a,
             neuron_type,
         )
-        self.neuron_groups = {}
+        self.neuron_groups = (
+            {}
+        )  # Store neuron groups created with these specs accessible by layer number
+
+    def add_neurons(self, layer, neuron_group):
+        """
+        Adds a neuron group to the list of neuron groups created with these specs.
+
+        Parameters:
+        -----------
+        layer : int
+            The layer number to which the neuron group belongs.
+        neuron_group : NeuronGroup
+            The neuron group to be added.
+        """
+        if self.neuron_groups.get(layer):
+            warnings.warn(f"Neuron group for layer {layer} already exists.")
+        else:
+            self.neuron_groups[layer] = neuron_group
 
     def create_neurons(self, layer, target_network=None):
         """
@@ -266,26 +264,33 @@ class NeuronSpecs:
 
         Comments:
         --------
-        add these neurons to some list of neuron groups attached to this type as well, and on init add neuron groups to some buffer somewhere? IDK how that would work... look into it same as network baso
+        add these neurons to some list of neuron groups attached to this type as well,
+        and on init add neuron groups to some buffer somewhere? IDK how that would work... look into it same as network baso
         I guess on inport of module import that buffer so it hangs out in the background...
-        maybe add some list which captures all neurongroups made according to this template, perhaps include it in some mapping feature as well - say if we could add all
-        If the network has been explicitly created we can do this with target_network, otherwise it gets added to the global stuff - add functionality later
+        maybe add some list which captures all neurongroups made according to this template,
+          perhaps include it in some mapping feature as well - say if we could add all
+        If the network has been explicitly created we can do this with target_network,
+        otherwise it gets added to the global stuff - add functionality later
         """
 
         # Retrieve the appropriate equation model for the neuron type
         model = equations.neuron_equations[self.neuron_type]
-        neuron_group_name = f"{self.neuron_type}_layer_{layer}"
+        # print(f"for neuron type {self.neuron_type} using model {model}")
+        neuron_group_name = f"{self.neuron_type}_{layer}"
+        t_refract = self.parameters.t_refract
         # Create the neuron group with a threshold and reset condition
         neurons = NeuronGroup(
             N=int(self.length**2),
             model=model,
+            method="rk4",
             threshold="v > V_threshold",
             reset="v = V_reset",
+            refractory=t_refract,
             name=neuron_group_name,
         )
         # Add additional parameters to the neuron group
         self.add_variables(neurons)
-        self.neuron_groups[neuron_group_name] = neurons
+        self.neuron_groups[layer] = neurons
         if not target_network == None:
             print(f"adding layer{layer} neurons to network")
             target_network.add(neurons)
@@ -300,6 +305,7 @@ class NeuronSpecs:
         neurons : NeuronGroup
             The neuron group to which variables will be added.
         """
+        neurons.v = self.parameters.v_rest
 
         # Assign membrane, conductance, and voltage-related parameters
         neurons.Cm = self.parameters.cm
@@ -321,6 +327,10 @@ class NeuronSpecs:
             neurons.tau_ie = self.parameters.tau_ie
         if self.parameters.tau_ii:
             neurons.tau_ii = self.parameters.tau_ii
+        if self.parameters.tau_a:
+            neurons.tau_a = self.parameters.tau_a
+        if self.parameters.v_reversal_a:
+            neurons.V_reversal_a = self.parameters.v_reversal_a
 
         # Optionally assign x and y coordinates if spatial mapping is necessary
         self.add_rows_and_columns(neurons, self.length)

@@ -680,3 +680,79 @@ def generate_timed_input_from_input(
     collapsed_input_hz = collapsed_input * hertz
     timed_input = TimedArray(collapsed_input_hz, dt=stimulus_exposure_time)
     return timed_input
+
+
+def generate_3d_poisson_rates_from_filters(
+    dataset,
+    gabor_filters,
+    neuron_size,
+    image_size,
+    num_total_pixels=100,
+    radius=6,
+    normalise=True,
+):
+    """
+    Generates a 4D array that corresponds to a 3D poisson train for each image in the dataset.
+
+    Args:
+    dataset (ndarray): 3D array of images with shape (num_images, height, width).
+    gabor_filters (GaborFilters): GaborFilters object containing multiple filters.
+    neuron_size (int): Size of the neuron grid (e.g., 14 for 14x14 neurons).
+    image_size (int): Size of the input images (e.g., 28x28).
+    num_total_pixels (int): Number of pixels to sample for each neuron.
+    radius (int): Radius around the center of the pixel region for each neuron.
+    Returns:
+    ndarray: 4D array of poisson rates with shape (num_images, neuron_size, neuron_size, num_filters).
+    """
+
+    # Step 1: Convolve the dataset with the Gabor filters
+    convolved_data = convolve_dataset_with_gabor_filters(dataset, gabor_filters)
+
+    # Step 2: Normalise each convolved image using the euclidian norm
+    if normalise:
+        # Compute the norm along spatial dimensions (1, 2)
+        norm = np.linalg.norm(
+            convolved_data, axis=(1, 2), keepdims=True
+        )  # Shape: (30, 1, 1, 8)
+
+        # Normalize by broadcasting the norm across spatial dimensions
+        convolved_data = convolved_data / norm
+
+    return convolved_data
+
+
+def generate_flat_poisson_inputs_from_convolved_data(convolved_data):
+    """
+    Create a 2D array of inputs where each row corresponds to a flattened 3D poisson train for each image in the dataset. and each column corresponds to an image
+
+    it basically gives value for each coordinate for each filter, then moves along the row then moves along the column
+    """
+
+    num_images, image_height, image_width, num_filters = convolved_data.shape
+    new_array = np.zeros((num_images, image_height * image_width * num_filters))
+    for image_idx in range(num_images):
+        new_array[image_idx] = convolved_data[image_idx].flatten()
+    return new_array
+
+
+def generate_timed_array_from_flat_poisson_inputs(
+    poisson_inputs,
+    beta,
+    stimulus_exposure_time,
+):
+    """
+    Generate a TimedArray from a 2D input array, where the input array is assumed to be
+    in the format (num_images, height*width*num_filters).
+
+    Args:
+    input (ndarray): 2D input array with shape (num_images, height*width*num_filters).
+
+    Returns:
+    TimedArray: TimedArray object with the input values.
+    """
+    num_images, num_neurons = poisson_inputs.shape
+    collapsed_input_hz = poisson_inputs * beta * hertz
+    print(f"beta:{beta}")
+    print(collapsed_input_hz)
+    timed_input = TimedArray(collapsed_input_hz, dt=stimulus_exposure_time)
+    return timed_input

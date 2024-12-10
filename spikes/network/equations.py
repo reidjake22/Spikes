@@ -33,8 +33,6 @@ Notes:
     This module relies on the Brian2 library for defining and managing equations.
 """
 
-from brian2 import *
-
 
 # OKAY THIS WHOLE THING ISN"T RIGHT - SINGLE EQUATION vs EQUATIONS?
 class EquationsContainer:
@@ -78,15 +76,16 @@ class EquationsContainer:
         """
 
         # Define excitatory neuron equations
-        excitatory_model = Equations(
-            """
-            dv/dt = (V_rest-v)/tau_m + (ge*(V_reversal_e-v) + gi*(V_reversal_i-v))/(tau_m*g_leak) + sigma*xi*(tau_m)**-0.5 : volt
+        excitatory_model = """
+            dv/dt = (V_rest-v)/tau_m + (ge*(V_reversal_e-v) + gi*(V_reversal_i-v) + ga*(V_reversal_a-v))/(tau_m*g_leak) + sigma*xi*(tau_m)**-0.5 : volt
             dge/dt = -ge/tau_ee : siemens
             dgi/dt = -gi/tau_ie : siemens
+            dga/dt = -ga/tau_a : siemens
             Cm : farad  # Membrane capacitance
             g_leak : siemens  # Leak conductance
             V_reset: volt  # Reset potential
             V_rest : volt  # Resting potential
+            V_reversal_a : volt  # Homeostatic potential
             V_reversal_e : volt  # Reversal potential for excitatory synapses
             V_reversal_i : volt  # Reversal potential for inhibitory synapses
             V_threshold: volt  # Threshold potential
@@ -95,14 +94,13 @@ class EquationsContainer:
             tau_m : second  # Membrane time constant
             tau_ee : second  # Time constant for excitatory-excitatory synapses
             tau_ie : second  # Time constant for inhibitory-excitatory synapses
+            tau_a : second  # Time constant for homeostatic synapses
             column : integer (constant)
             row : integer (constant)
             """
-        )
 
         # Define inhibitory neuron equations
-        inhibitory_model = Equations(
-            """
+        inhibitory_model = """
             dv/dt = (V_rest-v)/tau_m + (ge*(V_reversal_e-v) + gi*(V_reversal_i-v))/(tau_m * g_leak) + sigma*xi*(tau_m)**-0.5 : volt
             dge/dt = -ge/tau_ei : siemens
             dgi/dt = -gi/tau_ii : siemens
@@ -121,11 +119,9 @@ class EquationsContainer:
             column: integer (constant)
             row: integer (constant)
             """
-        )
 
         # Define input neuron equations
-        input_model = Equations(
-            """
+        input_model = """
             dv/dt = (V_rest-v)/tau_m + (ge*(V_reversal_e-v) + gi*(V_reversal_i-v))/(tau_m*g_leak) + sigma*xi*(tau_m)**-0.5 : volt
             dge/dt = -ge/tau_ee : siemens
             dgi/dt = -gi/tau_ie : siemens
@@ -143,43 +139,59 @@ class EquationsContainer:
             column : integer (constant)
             row : integer (constant)
             """
-        )
-        stdp_model = Equations(
-            """
-                    lambda_e: 1
-                    A_minus: 1
-                    A_plus: 1
+
+        stdp_model = """
+                    dapre/dt = -apre/tau_c : 1 (event-driven)
+                    dapost/dt = -apost/tau_d : 1 (event-driven)
+                    lambda_e: siemens
+                    lambda_a: siemens
                     alpha_C: 1
                     alpha_D: 1
-                    apre: 1
-                    apost: 1
+                    tau_c: second
+                    tau_d: second
                     w: 1
-                    lastupdate_pre: second
-                    lastupdate_post: second
+                    plasticity: 1
+                    learning_rate: 1
                     """
-        )
-        stdp_pre = """
+        stdp_on_pre = """
                     ge_post += lambda_e * w
-                    apre = apre * exp((lastupdate_post - t)/tau_pre)
-                    lastupdate_pre = t
-                    apre += alpha_C
-                    apre = clip(apre,0,1)
-                    w += - apost * A_minus 
-                    w = clip(w,0,1)
+                    ga_post += lambda_a
+                    apre = clip(apre + alpha_C, 0, 1)
+                    w = clip(w - apost * learning_rate * plasticity, 0, 1)
                     """
-        stdp_post = """
-                    apost = apost * exp((lastupdate_pre - t)/tau_post)
-                    lastupdate_post = t
-                    apost += alpha_D
-                    w += apre * A_plus
-                    w = clip(w,0,1)
+        stdp_on_post = """
+                    apost = clip(apost + alpha_D, 0, 1)
+                    w = clip(w+ apre * plasticity * learning_rate, 0, 1)
                     """
-        non_stdp_model = Equations(" ")
+
+        excit_non_stdp_model = """
+                w: 1
+                lambda_e: siemens
+                lambda_a: siemens
+                """
+        excit_non_stdp_on_pre = """
+                ge_post += lambda_e
+                ga_post += lambda_a
+                """
+        inhib_non_stdp_model = """
+                w: 1
+                lambda_i: siemens
+                """
+        inhib_non_stdp_on_pre = """
+                gi_post += lambda_i
+                """
 
         # Define input neuron equations
-        self.neuron_equations["excitatory"] = excitatory_model
-        self.neuron_equations["inhibitory"] = inhibitory_model
+        self.neuron_equations["e"] = excitatory_model
+        self.neuron_equations["i"] = inhibitory_model
         self.neuron_equations["input"] = input_model
+        self.synaptic_equations["stdp_model"] = stdp_model
+        self.synaptic_equations["stdp_on_pre"] = stdp_on_pre
+        self.synaptic_equations["stdp_on_post"] = stdp_on_post
+        self.synaptic_equations["excit_non_stdp_model"] = excit_non_stdp_model
+        self.synaptic_equations["excit_non_stdp_on_pre"] = excit_non_stdp_on_pre
+        self.synaptic_equations["inhib_non_stdp_model"] = inhib_non_stdp_model
+        self.synaptic_equations["inhib_non_stdp_on_pre"] = inhib_non_stdp_on_pre
 
     def add_equation(self, eq_type, equation_name, equation_body):
         """

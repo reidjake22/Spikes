@@ -57,7 +57,7 @@ class ConvImage:
     On initialization, all ConvLayer objects are created using the input image and GaborFilters.
     """
 
-    def __init__(self, gabor_filters, image):
+    def __init__(self, gabor_filters, image, normalise=True):
         """
         Initialize the ConvImage by performing convolutions of the input image with each GaborFilter.
 
@@ -69,9 +69,9 @@ class ConvImage:
         self.gabor_filters = gabor_filters  # Store the GaborFilters object
         self.layers = []  # List to store ConvLayer objects
 
-        self._create_conv_layers()  # Automatically create ConvLayer objects
+        self._create_conv_layers(normalise)  # Automatically create ConvLayer objects
 
-    def _create_conv_layers(self):
+    def _create_conv_layers(self, normalise=True):
         """
         Create a ConvLayer for each Gabor filter by convolving the filter with the input image.
         """
@@ -81,6 +81,9 @@ class ConvImage:
             conv_result = convolve2d(
                 self.image, gabor_filter.filter_array, mode="same", boundary="wrap"
             )
+            if normalise:
+                eu_mean = np.sqrt(np.mean(conv_result**2))
+                conv_result = conv_result / eu_mean
 
             # Create a ConvLayer with the Gabor filter and convolution result
             conv_layer = ConvLayer(gabor_filter, conv_result)
