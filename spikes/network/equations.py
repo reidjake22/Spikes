@@ -74,10 +74,10 @@ class EquationsContainer:
         Adds basic neuron equations for excitatory, inhibitory, and input neurons
         to the neuron_equations dictionary.
         """
-
+        #  + sigma*xi*(tau_m)**-0.5
         # Define excitatory neuron equations
         excitatory_model = """
-            dv/dt = (V_rest-v)/tau_m + (ge*(V_reversal_e-v) + gi*(V_reversal_i-v) + ga*(V_reversal_a-v))/(tau_m*g_leak) + sigma*xi*(tau_m)**-0.5 : volt
+            dv/dt = (V_rest-v)/tau_m + (ge*(V_reversal_e-v) + gi*(V_reversal_i-v) + ga*(V_reversal_a-v))/(tau_m*g_leak) : volt
             dge/dt = -ge/tau_ee : siemens
             dgi/dt = -gi/tau_ie : siemens
             dga/dt = -ga/tau_a : siemens
@@ -101,7 +101,7 @@ class EquationsContainer:
 
         # Define inhibitory neuron equations
         inhibitory_model = """
-            dv/dt = (V_rest-v)/tau_m + (ge*(V_reversal_e-v) + gi*(V_reversal_i-v))/(tau_m * g_leak) + sigma*xi*(tau_m)**-0.5 : volt
+            dv/dt = (V_rest-v)/tau_m + (ge*(V_reversal_e-v) + gi*(V_reversal_i-v))/(tau_m * g_leak) : volt
             dge/dt = -ge/tau_ei : siemens
             dgi/dt = -gi/tau_ii : siemens
             Cm : farad
@@ -122,7 +122,7 @@ class EquationsContainer:
 
         # Define input neuron equations
         input_model = """
-            dv/dt = (V_rest-v)/tau_m + (ge*(V_reversal_e-v) + gi*(V_reversal_i-v))/(tau_m*g_leak) + sigma*xi*(tau_m)**-0.5 : volt
+            dv/dt = (V_rest-v)/tau_m + (ge*(V_reversal_e-v) + gi*(V_reversal_i-v))/(tau_m*g_leak) : volt
             dge/dt = -ge/tau_ee : siemens
             dgi/dt = -gi/tau_ie : siemens
             Cm : farad
@@ -144,7 +144,6 @@ class EquationsContainer:
                     dapre/dt = -apre/tau_c : 1 (event-driven)
                     dapost/dt = -apost/tau_d : 1 (event-driven)
                     lambda_e: siemens
-                    lambda_a: siemens
                     alpha_C: 1
                     alpha_D: 1
                     tau_c: second
@@ -155,23 +154,20 @@ class EquationsContainer:
                     """
         stdp_on_pre = """
                     ge_post += lambda_e * w
-                    ga_post += lambda_a
-                    apre = clip(apre + alpha_C, 0, 1)
+                    apre = apre + alpha_C
                     w = clip(w - apost * learning_rate * plasticity, 0, 1)
                     """
         stdp_on_post = """
-                    apost = clip(apost + alpha_D, 0, 1)
+                    apost = apost + alpha_D
                     w = clip(w+ apre * plasticity * learning_rate, 0, 1)
                     """
 
         excit_non_stdp_model = """
                 w: 1
                 lambda_e: siemens
-                lambda_a: siemens
                 """
         excit_non_stdp_on_pre = """
                 ge_post += lambda_e
-                ga_post += lambda_a
                 """
         inhib_non_stdp_model = """
                 w: 1
@@ -180,6 +176,8 @@ class EquationsContainer:
         inhib_non_stdp_on_pre = """
                 gi_post += lambda_i
                 """
+        #                     apre = clip(apre + alpha_C, 0, 1)
+        #                    apost = clip(apost + alpha_D, 0, 1)
 
         # Define input neuron equations
         self.neuron_equations["e"] = excitatory_model

@@ -4,7 +4,11 @@
 __pycache__/
 *.py[cod]
 *$py.class
-
+spikes/results/*
+brian2_trained_model_60
+spikes/brian2_trained_model_60
+results/*
+brian2_trained_model_60
 # C extensions
 *.so
 

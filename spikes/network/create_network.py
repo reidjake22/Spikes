@@ -167,14 +167,14 @@ def create_synapse_groups(
         # Create efe synapses for all layers except the last
         if not layer == n_layers:
             # create efe synapses
-            print(f"\r *** creating efe synapses for layer {layer} ***", flush=True)
+            print(f"\r*** creating efe synapses for layer {layer} ***", flush=True)
             efe_synapse_specs.create_synapses(
                 layer,
                 exc_neuron_specs,
                 exc_neuron_specs,
                 target_network=network,
             )
-            print(f"\r *** connecting efe synapses for layer {layer} ***", flush=True)
+            print(f"\r*** connecting efe synapses for layer {layer} ***", flush=True)
             efe_synapse_specs.connect_synapses(
                 layer,
                 radius=radii["efe"][layer],
@@ -184,7 +184,7 @@ def create_synapse_groups(
             )
 
         # create ele synapses
-        print(f"\r *** creating ele synapses for layer {layer} *** ", flush=True)
+        print(f"\r*** creating ele synapses for layer {layer} *** ", flush=True)
         ele_synapse_specs.create_synapses(
             layer,
             exc_neuron_specs,
@@ -201,7 +201,7 @@ def create_synapse_groups(
         # Create ebe synapses for all layers except the first
         if not layer == 1:
             # create ebe synapses
-            print(f"\r *** creating ebe synapses for layer {layer}", flush=True)
+            print(f"\r*** creating ebe synapses for layer {layer}", flush=True)
             ebe_synapse_specs.create_synapses(
                 layer,
                 exc_neuron_specs,
@@ -217,7 +217,7 @@ def create_synapse_groups(
             )
 
         # create E-I synapses
-        print(f"\r *** creating eli synapses for layer {layer} *** ", flush=True)
+        print(f"\r*** creating eli synapses for layer {layer} *** ", flush=True)
         eli_synapse_specs.create_synapses(
             layer,
             exc_neuron_specs,
@@ -233,7 +233,7 @@ def create_synapse_groups(
         )
 
         # create I-E synapses
-        print(f"\r *** creating ile synapses for layer {layer} *** ", flush=True)
+        print(f"\r*** creating ile synapses for layer {layer} *** ", flush=True)
         ile_synapse_specs.create_synapses(
             layer,
             inh_neuron_specs,

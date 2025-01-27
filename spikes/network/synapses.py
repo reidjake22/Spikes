@@ -62,7 +62,6 @@ class SynapseParameters:
         - type
         - lambda_e
         = lambda_i
-        - lambda_a
         - A_plus
         - alpha_C
         - alpha_D
@@ -73,7 +72,6 @@ class SynapseParameters:
             "type",
             "lambda_e",
             "lambda_i",
-            "lambda_a",
             "A_plus",
             "alpha_C",
             "alpha_D",
@@ -91,7 +89,6 @@ class SynapseParameters:
         if self.type == "f":
             for key in [
                 "lambda_e",
-                "lambda_a",
                 "alpha_C",
                 "alpha_D",
                 "tau_c",
@@ -102,7 +99,6 @@ class SynapseParameters:
         elif self.type == "b":
             for key in [
                 "lambda_e",
-                "lambda_a",
                 "alpha_C",
                 "alpha_D",
                 "tau_c",
@@ -113,7 +109,6 @@ class SynapseParameters:
         elif self.type == "l":
             for key in [
                 "lambda_e",
-                "lambda_a",
                 "alpha_C",
                 "alpha_D",
                 "tau_c",
@@ -208,12 +203,7 @@ class SynapseSpecs:
             )
             for j in range(efferent_group.N):
                 conv_data = [int(data) for data in data[j]]
-                # try:
-                #     print(conv_data[0])
-                #     print(type(conv_data[0]))
-                # except:
-                #     print("no data")
-                #     print(conv_data)
+
                 if len(conv_data) == 0:
                     print(f"no connections for neuron {j}")
                 else:
@@ -227,6 +217,7 @@ class SynapseSpecs:
             # print(f"for synapses from {afferent_group.name} to {efferent_group.name} scale: {scale}")
             index_list = []  # for debugging
             index_lens = []
+            print(f" radius: {radius}")
             for j in range(efferent_group.N):
                 row = efferent_group[j].row[0]
                 column = efferent_group[j].column[0]
@@ -239,6 +230,7 @@ class SynapseSpecs:
                 )
                 index_list.append(indexes)
                 index_lens.append(len(indexes))
+
             # the mean number of connections
             mean = np.mean(index_lens)
             print(f"mean: {mean}")
@@ -261,6 +253,24 @@ class SynapseSpecs:
                     print(index_list[j])
                 else:
                     synapses.connect(i=index_list[j], j=j)
+            # flat_indices = []
+            # flat_j = []
+            # for j, pre_indices in enumerate(index_list):  # indices is a list of lists
+            #     flat_indices.extend(pre_indices)  # Append all pre-synaptic indices
+            #     flat_j.extend(
+            #         [j] * len(pre_indices)
+            #     )  # Repeat post-synaptic index for each connection
+            # # Convert to NumPy arrays
+            # flat_indices = np.array(flat_indices, dtype=int)
+            # flat_j = np.array(flat_j, dtype=int)
+
+            # # Connect synapses
+            # # if storage is not None:
+            # #     print(f"STORING INPUT DATA")
+            # #     storage["i_0"] = [int(index) for index in flat_indices]
+            # #     storage["j_0"] = [int(index) for index in flat_j]
+
+            # synapses.connect(i=flat_indices, j=flat_j)
 
             if storage is not None:
                 print(
@@ -294,7 +304,6 @@ class SynapseSpecs:
         safe_values = [
             "lambda_e",
             "lambda_i",
-            "lambda_a",
             "A_plus",
             "alpha_C",
             "alpha_D",
@@ -329,7 +338,9 @@ class SynapseSpecs:
         row_max = min(
             size_efferent - 1, row_centre + radius + 3
         )  # If 3 feels random it kinda is - just guessing it's good as it's 2 (max scale) + 1 so no cheeky stuff
-
+        # print(
+        #     f" row range: {row_min} - {row_max}; col range: {col_min} - {col_max}; size: {(row_min - row_max) *(col_min - col_max)}"
+        # )
         # Create the row and column ranges
         row_range = np.arange(row_min, row_max)
         col_range = np.arange(col_min, col_max)
@@ -343,9 +354,9 @@ class SynapseSpecs:
         accepted_columns = np.array([])
 
         for col, row in zip(col_coords, row_coords):
-            random = np.random.rand()
             if np.sqrt((col - col_centre) ** 2 + (row - row_centre) ** 2) < radius:
                 accepted_rows = np.append(accepted_rows, row)
                 accepted_columns = np.append(accepted_columns, col)
+        # print(f"num of connections: {len(accepted_rows)}")
         indexes = (accepted_rows * size_efferent + accepted_columns).astype(int)
         return indexes

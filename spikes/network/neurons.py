@@ -275,6 +275,14 @@ class NeuronSpecs:
 
         # Retrieve the appropriate equation model for the neuron type
         model = equations.neuron_equations[self.neuron_type]
+        if self.neuron_type == "e":
+            reset = """
+            v = V_reset
+            ga += 6 * nsiemens """
+        else:
+            reset = """
+            v = V_reset
+            """
         # print(f"for neuron type {self.neuron_type} using model {model}")
         neuron_group_name = f"{self.neuron_type}_{layer}"
         t_refract = self.parameters.t_refract
@@ -284,7 +292,7 @@ class NeuronSpecs:
             model=model,
             method="rk4",
             threshold="v > V_threshold",
-            reset="v = V_reset",
+            reset=reset,
             refractory=t_refract,
             name=neuron_group_name,
         )
