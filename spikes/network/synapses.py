@@ -1,4 +1,5 @@
 from brian2 import *
+import time
 
 """
 Module Name: synapses.py
@@ -52,6 +53,11 @@ Notes:
 """
 
 from .neurons import NeuronSpecs
+<<<<<<< HEAD
+=======
+import pickle
+import os
+>>>>>>> jakes_working_repo
 
 
 class SynapseParameters:
@@ -107,6 +113,10 @@ class SynapseParameters:
                 if not hasattr(self, key) or getattr(self, key) is None:
                     raise ValueError(f"Parameter {key} is not provided")
         elif self.type == "l":
+<<<<<<< HEAD
+=======
+            missing = []
+>>>>>>> jakes_working_repo
             for key in [
                 "lambda_e",
                 "alpha_C",
@@ -115,9 +125,15 @@ class SynapseParameters:
                 "tau_d",
             ]:
                 if not hasattr(self, key) or getattr(self, key) is None:
+<<<<<<< HEAD
                     print(
                         f"Parameter {key} is not provided. If {self.type} is a lateral synapse, it may not be needed if we are dealing with eli or ile synapses"
                     )
+=======
+                    missing.append(key)
+            if not missing == []:
+                print(f"Missing parameters unless eli or ile: {missing}")
+>>>>>>> jakes_working_repo
 
         else:
             raise ValueError(f"Unknown synapse type: {self.synapse_type}")
@@ -127,6 +143,7 @@ class SynapseSpecs:
     """
     Synapse specs for synapses in a neural network."""
 
+<<<<<<< HEAD
     def __init__(self, model, on_pre, on_post=None, type=None, **params):
         self.model = model
         self.on_pre = on_pre
@@ -137,6 +154,20 @@ class SynapseSpecs:
         self.recent_a = None  # this is dumb lol but works perfectly
         self.recent_e = None
 
+=======
+    def __init__(self, model, on_pre, on_post=None, type=None, name=None, **params):
+        self.neuron_model = model
+        self.pre_point = on_pre
+        self.post_point = on_post
+        self.type = type
+        self.name = name
+
+        self.params = SynapseParameters(type=type, **params)
+        self.synapse_objects = {}  # by layer
+        self.recent_a = None  # this is dumb lol but works perfectly
+        self.recent_e = None
+
+>>>>>>> jakes_working_repo
     def create_synapses(
         self,
         layer,
@@ -148,7 +179,10 @@ class SynapseSpecs:
         if self.type == "f":
             afferent_group = afferent_group_specs.neuron_groups[layer]
             efferent_group = efferent_group_specs.neuron_groups[layer + 1]
+<<<<<<< HEAD
 
+=======
+>>>>>>> jakes_working_repo
         elif self.type == "b":
             afferent_group = afferent_group_specs.neuron_groups[layer]
             efferent_group = efferent_group_specs.neuron_groups[layer - 1]
@@ -159,6 +193,7 @@ class SynapseSpecs:
         self.recent_a = afferent_type
         efferent_type = efferent_group_specs.neuron_type
         self.recent_e = efferent_type
+<<<<<<< HEAD
         if debug:
             print(
                 f"Creating synapses from {afferent_group.name} to {efferent_group.name}"
@@ -174,13 +209,39 @@ class SynapseSpecs:
             method="rk4",
             on_pre=self.on_pre,
             on_post=self.on_post,
+=======
+        synapse_name = f"{afferent_type}{self.type}{efferent_type}_{layer}"
+        
+        print(f"*** synapse_name: {synapse_name} ***")
+        print(f"model for {synapse_name} at creation of synapses:")
+        print(self.neuron_model)
+        print(f"on_pre for {synapse_name} at creation of synapses:")
+        print(self.pre_point)
+        print(f"on_post for {synapse_name} at creation of synapses:")
+        print(self.post_point)
+        synapses = Synapses(
+            afferent_group,
+            efferent_group,
+            model=self.neuron_model,
+            method="rk4",
+            on_pre=self.pre_point,
+            on_post=self.post_point,
+>>>>>>> jakes_working_repo
             name=synapse_name,
-        )
+        )   
         self.synapse_objects[layer] = (
             synapses,
             afferent_group,
             efferent_group,
         )
+<<<<<<< HEAD
+        self.synapse_objects[layer] = (
+            synapses,
+            afferent_group,
+            efferent_group,
+        )
+=======
+>>>>>>> jakes_working_repo
         target_network.add(synapses)
 
     def connect_synapses(
@@ -188,8 +249,11 @@ class SynapseSpecs:
         layer,
         radius,
         avg_no_neurons,
+<<<<<<< HEAD
         storage=None,
         data=None,
+=======
+>>>>>>> jakes_working_repo
     ):
         synapses = self.synapse_objects[layer][0]
         afferent_group = self.synapse_objects[layer][1]
@@ -204,6 +268,7 @@ class SynapseSpecs:
             for j in range(efferent_group.N):
                 conv_data = [int(data) for data in data[j]]
 
+<<<<<<< HEAD
                 if len(conv_data) == 0:
                     print(f"no connections for neuron {j}")
                 else:
@@ -289,6 +354,72 @@ class SynapseSpecs:
             # I want the variance and average of indexes
             print(f"mean: {np.mean([len(indexes) for indexes in index_list])}")
             print(f"variance: {np.var([len(indexes) for indexes in index_list])}")
+=======
+        print(
+            f"\r *** GENERATING DATA TO CONNECT synapses from {afferent_group.name} to {efferent_group.name} for layer {layer} ***",
+            flush=True,
+        )
+        scale = size_afferent / size_efferent
+        # print(f"for synapses from {afferent_group.name} to {efferent_group.name} scale: {scale}")
+        index_list = []  # for debugging
+        index_lens = []
+        print(f" radius: {radius}")
+        for j in range(efferent_group.N):
+            row = efferent_group[j].row[0]
+            column = efferent_group[j].column[0]
+            indexes = self._get_indexes(
+                row,
+                column,
+                size_afferent,
+                scale,
+                radius,
+            )
+            index_list.append(indexes)
+            index_lens.append(len(indexes))
+
+        mean = np.max(index_lens)  # was np.mean(index_lens)
+        print(f"mean: {mean}")
+        # probability to get avg_no_neurons connections
+        connection_probability = avg_no_neurons / mean
+        time.sleep(5)
+        print(f"neuron no. {j}")
+        print(f"connection_probability: {connection_probability}")
+        new_index_list = []
+        for j in range(efferent_group.N):
+            # for each item, in index_list[j] retain with a probability of connection_probability
+            indexes = index_list[j]
+            new_indexes = [
+                index for index in indexes if np.random.rand() < connection_probability
+            ]
+
+            new_index_list.append(new_indexes)
+            if len(new_index_list[j]) == 0:
+                print(f"no connections for neuron {j}")
+            else:
+                synapses.connect(i=new_index_list[j], j=j)
+        print(
+            f"the mean difference between original indexes and new indexes is {np.mean([len(indexes) - len(new_indexes) for indexes, new_indexes in zip(index_list, new_index_list)])}"
+        )
+        # I want the variance and average of indexes
+        print(f"mean: {np.mean([len(indexes) for indexes in index_list])}")
+
+        # Create a directory for storing the data if it doesn't exist
+        directory = "simulation_data"
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+        # Define the file path
+        file_path = os.path.join(directory, f"synapse_data_layer_{afferent_group.name}_{efferent_group.name}_{layer}.pkl")
+
+        # Store the index list and new index list
+        with open(file_path, "wb") as file:
+            pickle.dump({"index_list": index_list, "new_index_list": new_index_list}, file)
+        
+        print(f"Data stored in {file_path}")
+        time.sleep(5)
+
+        # print(f"variance: {np.var([len(indexes) for indexes in index_list])}")
+>>>>>>> jakes_working_repo
         self._set_synapse_parameters(synapses)
         if self.recent_a == self.recent_e:
             synapses.w = "rand()"
@@ -354,9 +485,34 @@ class SynapseSpecs:
         accepted_columns = np.array([])
 
         for col, row in zip(col_coords, row_coords):
+<<<<<<< HEAD
             if np.sqrt((col - col_centre) ** 2 + (row - row_centre) ** 2) < radius:
                 accepted_rows = np.append(accepted_rows, row)
                 accepted_columns = np.append(accepted_columns, col)
         # print(f"num of connections: {len(accepted_rows)}")
         indexes = (accepted_rows * size_efferent + accepted_columns).astype(int)
         return indexes
+=======
+            if (
+                np.sqrt((col - col_centre) ** 2 + (row - row_centre) ** 2) <= radius
+            ):  # HAVE CHANGED THIS!
+                accepted_rows = np.append(accepted_rows, row)
+                accepted_columns = np.append(accepted_columns, col)
+        indexes = (accepted_rows * size_efferent + accepted_columns).astype(int)
+        return indexes
+
+class SynapseSpecsInfo:
+    def __init__(self, synapse_specs):
+        # I want to save data on weights and connectivity for all synapses.
+        synapse_groups = synapse_specs.synapse_objects
+        self.synapse_info = {}
+        for key, synapse in synapse_groups.items():
+            self.synapse_info[synapse[0].name] = {
+                "source": synapse[0].source.name,
+                "target": synapse[0].target.name,
+                "i": synapse[0].i,
+                "j": synapse[0].j,
+                "w": synapse[0].w,
+                "d": synapse[0].delay,
+            }
+>>>>>>> jakes_working_repo

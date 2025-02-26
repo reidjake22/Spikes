@@ -15,7 +15,11 @@ def plot_synapse_distribution(synapses: SynapseSpecs, name: str):
     synapse_name : str
         The name of the synapse object to plot the distribution for.
     """
+<<<<<<< HEAD
     synapses = synapses.synapse_objects[name]
+=======
+    synapses = synapses.synapse_objects[layer]
+>>>>>>> jakes_working_repo
     plt.figure(figsize=(6, 6))
     plt.hist(synapses.w, bins=20, color="skyblue", edgecolor="black")
     plt.title(f"Synapse Weight Distribution for {name}")

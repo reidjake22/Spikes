@@ -33,7 +33,10 @@ Notes:
     This module relies on the Brian2 library for defining and managing equations.
 """
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> jakes_working_repo
 # OKAY THIS WHOLE THING ISN"T RIGHT - SINGLE EQUATION vs EQUATIONS?
 class EquationsContainer:
     """
@@ -61,6 +64,7 @@ class EquationsContainer:
         Initialize empty dictionaries for neuron, synaptic, and other equations.
         Adds basic equations for excitatory, inhibitory, and input neurons.
         """
+
         # Initialise the dictionaries for different equations
         self.neuron_equations = {}
         self.synaptic_equations = {}

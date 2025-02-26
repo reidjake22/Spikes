@@ -38,8 +38,6 @@ import seaborn as sns
 
 # Initialize the global equations container | look into this
 equations = EquationsContainer()
-
-
 class NeuronParameters:
     """
     Class to hold and validate neuron parameters.
@@ -129,19 +127,30 @@ class NeuronParameters:
             "v_rest",
             "v_reversal_e",
             "v_reversal_i",
+<<<<<<< HEAD
             "v_reversal_a",
+=======
+>>>>>>> jakes_working_repo
             "t_refract",
             "sigma",
             "tau_m",
         ]
         params_by_type = {
             "e": {
+<<<<<<< HEAD
                 "required": ["tau_ee", "tau_ie", "tau_a"],
+=======
+                "required": ["tau_ee", "tau_ie", "tau_a","v_reversal_a"],
+>>>>>>> jakes_working_repo
                 "forbidden": ["tau_ei", "tau_ii"],
             },
             "i": {
                 "required": ["tau_ei", "tau_ii"],
+<<<<<<< HEAD
                 "forbidden": ["tau_ee", "tau_ie", "tau_a"],
+=======
+                "forbidden": ["tau_ee", "tau_ie", "tau_a","v_reversal_a"],
+>>>>>>> jakes_working_repo
             },
         }
 
@@ -157,7 +166,11 @@ class NeuronParameters:
             required = params_by_type[neuron_type]["required"]
             forbidden = params_by_type[neuron_type]["forbidden"]
             inconsistent = any(getattr(self, p) is None for p in required) or any(
+<<<<<<< HEAD
                 getattr(self, p) for p in forbidden
+=======
+                getattr(self, p) is not None for p in forbidden
+>>>>>>> jakes_working_repo
             )
             if inconsistent:
                 warnings.warn(
@@ -272,7 +285,7 @@ class NeuronSpecs:
         If the network has been explicitly created we can do this with target_network,
         otherwise it gets added to the global stuff - add functionality later
         """
-
+        
         # Retrieve the appropriate equation model for the neuron type
         model = equations.neuron_equations[self.neuron_type]
         if self.neuron_type == "e":

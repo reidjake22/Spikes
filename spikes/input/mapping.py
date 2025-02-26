@@ -53,7 +53,7 @@ import numpy as np
 import random
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
-from brian2 import TimedArray, hertz, ms
+from brian2 import * #TimedArray, hertz, ms
 
 from .convolution import convolve_dataset_with_gabor_filters
 
@@ -734,11 +734,84 @@ def generate_flat_poisson_inputs_from_convolved_data(convolved_data):
         new_array[image_idx] = convolved_data[image_idx].flatten()
     return new_array
 
+<<<<<<< HEAD
+=======
+import time
+
+def debug_array_shapes(**arrays):
+    """
+    Prints the shapes of multiple arrays with labeled dimensions.
+    Includes a time delay after each print statement for readability.
+
+    Usage:
+    debug_array_shapes(array1=array1, array2=array2, ...)
+    """
+    print("\n#### DEBUGGING ARRAY SHAPES ####\n")
+    for name, arr in arrays.items():
+        print(f"{name}: {arr.shape}")
+        time.sleep(0.5)  # Pause to make the output more readable
+    print("\n################################\n")
+
+
+def generate_test_train_flat_poisson(convolved_data,
+                                                     no_epochs: int,
+                                                     stimulus_exposure_time: Quantity,
+                                                     stimulus_exposure_time_test: Quantity,
+                                                     no_tests:int = 10):
+    """
+    """
+    from math import gcd
+    num_images, image_height, image_width, num_filters = convolved_data.shape
+    base_array = np.zeros((num_images, image_height * image_width * num_filters))
+    for image_idx in range(num_images):
+        base_array[image_idx] = convolved_data[image_idx].flatten()
+
+    print(base_array.shape)
+
+    hcf = gcd(int(stimulus_exposure_time/ms), int(stimulus_exposure_time_test/ms))
+    print(hcf)
+    stimulus_exposure_time = int(stimulus_exposure_time/ms)
+    stimulus_exposure_time_test = int(stimulus_exposure_time_test/ms)
+    no_repeats_train = int(stimulus_exposure_time/hcf)
+    no_repeats_test = int(stimulus_exposure_time_test/hcf)
+    print(no_repeats_test)
+    print(no_repeats_train)
+    training_epoch_array = np.repeat(base_array,no_repeats_train,axis=0)
+    test_epoch_array = np.repeat(base_array,no_repeats_test,axis=0)
+    training_epochs_array = np.tile(training_epoch_array, (no_epochs,1))
+    testing_epochs_array = np.tile(test_epoch_array,(no_tests,1))
+
+    activity_array = np.concatenate([training_epochs_array,testing_epochs_array],axis=0)
+
+    debug_array_shapes(
+    base_array=base_array,
+    training_epoch_array=training_epoch_array,
+    test_epoch_array=test_epoch_array,
+    training_epochs_array=training_epochs_array,
+    testing_epochs_array=testing_epochs_array,
+    activity_array=activity_array
+)
+    # We now have an array of num_images x num_neurons
+    # Now we need to multiply this to get epochs & test times
+    # Find highest common factor
+    # repeat each image by stimulus_exposure_time/hcf
+    # repeat this for epoch no's
+    # give 10 test epochs
+    #   each test epoch should repeat each image by stimlus_exposure_time_test/hcf
+    # repeat by 10 epochs
+
+    return activity_array, hcf
+
+>>>>>>> jakes_working_repo
 
 def generate_timed_array_from_flat_poisson_inputs(
     poisson_inputs,
     beta,
+<<<<<<< HEAD
     stimulus_exposure_time,
+=======
+    hcf,
+>>>>>>> jakes_working_repo
 ):
     """
     Generate a TimedArray from a 2D input array, where the input array is assumed to be
@@ -752,7 +825,69 @@ def generate_timed_array_from_flat_poisson_inputs(
     """
     num_images, num_neurons = poisson_inputs.shape
     collapsed_input_hz = poisson_inputs * beta * hertz
+<<<<<<< HEAD
     print(f"beta:{beta}")
     print(collapsed_input_hz)
     timed_input = TimedArray(collapsed_input_hz, dt=stimulus_exposure_time)
     return timed_input
+=======
+    hcf = hcf * ms
+    print(f"beta:{beta}")
+    timed_input = TimedArray(collapsed_input_hz, dt=hcf)
+    return timed_input
+
+
+def gen_inputs():
+    """
+    Generates 3D Poisson input rates using Gabor filters for a set of images.
+    This function performs the following steps:
+    1. Defines parameters for Gabor filters including wavelengths, scaling factors, orientations, phase offsets, and aspect ratios.
+    2. Creates Gabor filters using the specified parameters.
+    3. Generates permutations of image identifiers.
+    4. Loads and processes images from the specified path.
+    5. Converts images to greyscale and normalizes them.
+    6. Generates 3D Poisson input rates from the processed images using the Gabor filters.
+    Returns:
+        np.ndarray: A 3D array of Poisson input rates generated from the images.
+    """
+
+    import numpy as np
+    from PIL import Image
+    import os
+    lambdas = [0.8]  # Wavelengths
+    betas = [1]  # Scaling factor for bandwidth
+    thetas = [0, np.pi / 4, np.pi / 2, 3 * np.pi / 4]  # Orientations
+    psis = [0, np.pi]  # Phase offsets
+    gammas = [0.5]  # Aspect ratio
+    size = 6  # Gabor filter sizes
+    gabor_filters = GaborFilters(size, lambdas, betas, thetas, psis, gammas)
+
+    from itertools import product
+
+    permutations = list(product(["c", "v"], repeat=3))
+    image_path = os.path.join("data","3N2P")
+
+    # Create an np array with 8 images and each size 124x124:
+    images = np.zeros((8, 128, 128))
+    image_no = 0
+    print("analysing data")
+    for t, l, r in permutations:
+        print(f"t: {t}, l: {l}, r: {r}")
+        image_paths = os.path.join(image_path, f"t{t}_l{l}_r{r}.jpg")
+        print(image_paths)
+        image = Image.open(image_paths)
+        greyscale = image.convert("L")
+        greyscale = np.array(greyscale) / 255.0
+        images[image_no] = greyscale
+        image_no += 1
+
+    _3d_poisson_inputs = generate_3d_poisson_rates_from_filters(
+        images,
+        gabor_filters,
+        neuron_size=64,
+        image_size=128,
+    )
+    # This has the shape num_images, neuron_size, neuron_size, num_filters
+
+    return _3d_poisson_inputs
+>>>>>>> jakes_working_repo

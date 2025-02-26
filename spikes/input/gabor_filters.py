@@ -73,7 +73,10 @@ class GaborFilter:
         if normalise:
             filter -= np.mean(filter)
             filter /= np.linalg.norm(filter)
+<<<<<<< HEAD
         print(filter)
+=======
+>>>>>>> jakes_working_repo
         return filter
 
     def save_as_image(self, directory):
