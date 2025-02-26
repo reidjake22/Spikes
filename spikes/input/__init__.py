@@ -19,11 +19,8 @@ from .mapping import (
     generate_3d_poisson_rates_from_filters,
     generate_timed_array_from_flat_poisson_inputs,
     generate_flat_poisson_inputs_from_convolved_data,
-<<<<<<< HEAD
-=======
     generate_test_train_flat_poisson,
     gen_inputs,
->>>>>>> jakes_working_repo
 )
 
 # Specify the items to expose in * imports
@@ -40,9 +37,6 @@ __all__ = [
     "generate_3d_poisson_rates_from_filters",
     "generate_timed_array_from_flat_poisson_inputs",
     "generate_flat_poisson_inputs_from_convolved_data",
-<<<<<<< HEAD
-=======
     "generate_test_train_flat_poisson",
     "gen_inputs",
->>>>>>> jakes_working_repo
 ]

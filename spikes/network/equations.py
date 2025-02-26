@@ -33,10 +33,6 @@ Notes:
     This module relies on the Brian2 library for defining and managing equations.
 """
 
-<<<<<<< HEAD
-
-=======
->>>>>>> jakes_working_repo
 # OKAY THIS WHOLE THING ISN"T RIGHT - SINGLE EQUATION vs EQUATIONS?
 class EquationsContainer:
     """

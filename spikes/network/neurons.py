@@ -127,30 +127,18 @@ class NeuronParameters:
             "v_rest",
             "v_reversal_e",
             "v_reversal_i",
-<<<<<<< HEAD
-            "v_reversal_a",
-=======
->>>>>>> jakes_working_repo
             "t_refract",
             "sigma",
             "tau_m",
         ]
         params_by_type = {
             "e": {
-<<<<<<< HEAD
-                "required": ["tau_ee", "tau_ie", "tau_a"],
-=======
                 "required": ["tau_ee", "tau_ie", "tau_a","v_reversal_a"],
->>>>>>> jakes_working_repo
                 "forbidden": ["tau_ei", "tau_ii"],
             },
             "i": {
                 "required": ["tau_ei", "tau_ii"],
-<<<<<<< HEAD
-                "forbidden": ["tau_ee", "tau_ie", "tau_a"],
-=======
                 "forbidden": ["tau_ee", "tau_ie", "tau_a","v_reversal_a"],
->>>>>>> jakes_working_repo
             },
         }
 
@@ -166,11 +154,7 @@ class NeuronParameters:
             required = params_by_type[neuron_type]["required"]
             forbidden = params_by_type[neuron_type]["forbidden"]
             inconsistent = any(getattr(self, p) is None for p in required) or any(
-<<<<<<< HEAD
-                getattr(self, p) for p in forbidden
-=======
                 getattr(self, p) is not None for p in forbidden
->>>>>>> jakes_working_repo
             )
             if inconsistent:
                 warnings.warn(

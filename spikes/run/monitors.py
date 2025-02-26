@@ -1,22 +1,3 @@
-<<<<<<< HEAD
-"""
-Module: Monitor Utilities for Spiking Neural Networks
-
-This module provides a set of tools for creating, managing, and visualizing
-various types of monitors in spiking neural network simulations using Brian2.
-
-TODO: SEND EXPLICIT VISUALISATIONS TO VISUALISATION MODULE
-Classes:
-    Monitors: A utility class for creating and managing monitors for
-              neuron groups in a spiking neural network.
-"""
-
-from brian2 import *
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-import matplotlib.animation as animation
-=======
->>>>>>> jakes_working_repo
 import numpy as np
 import math
 import matplotlib.pyplot as plt
@@ -24,27 +5,6 @@ import matplotlib.animation as animation
 from brian2 import *
 
 
-<<<<<<< HEAD
-class Monitors:
-    """
-    A class to manage and visualize monitors in spiking neural network simulations.
-
-    Attributes:
-        network (brian2.Network): The Brian2 network object to which monitors are added.
-        n_layers (int): Number of layers in the network.
-        monitors (dict): Dictionary to store monitors, keyed by (layer_name, monitor_type).
-        monitor_data (dict): Dictionary to store processed monitor data.
-    """
-
-    def __init__(self, network, n_layers):
-        """
-        Initialize the Monitors class.
-
-        Args:
-            network (brian2.Network): The Brian2 network object.
-            n_layers (int): Number of layers in the network.
-        """
-=======
 class MonitorManager:
     """
     A class to manage, toggle, and store data from monitors in a Brian2 simulation.
@@ -53,26 +13,10 @@ class MonitorManager:
 
     def __init__(self, network):
         """Initialize the MonitorManager."""
->>>>>>> jakes_working_repo
         self.network = network
         self.monitors = {}  # Active monitors: {(layer, monitor_type, excitatory): monitor}
         self.saved_data = {}  # Stores removed monitor data
 
-<<<<<<< HEAD
-    def create_monitor(self, neuron_group, monitor_type, layer, **kwargs):
-        """
-        Create a monitor for a given neuron group.
-
-        Args:
-            neuron_group (brian2.NeuronGroup): The neuron group to monitor.
-            monitor_type (str): Type of monitor (e.g., 'spike', 'voltage').
-            layer (int): Layer number associated with the neuron group.
-            **kwargs: Additional arguments for the monitor constructor.
-
-        Returns:
-            brian2.Monitor: The created monitor.
-        """
-=======
     def create_monitor(self, monitor_type: str, layer: int, exc: bool, **kwargs):
         """
         Create and add a monitor for a neuron group in the network.
@@ -107,7 +51,6 @@ class MonitorManager:
             raise ValueError(f"Neuron group '{group_name}' not found in the network.")
 
         # Monitor constructors
->>>>>>> jakes_working_repo
         constructors = {
             "spike": SpikeMonitor,
             "voltage": lambda group, **kw: StateMonitor(
@@ -123,63 +66,6 @@ class MonitorManager:
         self.monitors[(layer, monitor_type, exc)] = monitor
         return monitor
 
-<<<<<<< HEAD
-    def setup_excitatory_monitors(self, layers, monitor_type, **kwargs):
-        """
-        Setup monitors for excitatory neuron groups across layers.
-
-        Args:
-            layers (list[int]): List of layer indices to set up monitors for.
-            monitor_type (str): Type of monitor to set up.
-            **kwargs: Additional arguments for monitor setup.
-        """
-        for layer in layers:
-            layer_name = f"e_{layer}" if layer != 0 else "p_0"
-            group = next(
-                (
-                    obj
-                    for obj in self.network.objects
-                    if hasattr(obj, "name") and obj.name == layer_name
-                ),
-                None,
-            )
-            if group is None:
-                raise ValueError(f"Neuron group '{layer_name}' not found.")
-            self.create_monitor(group, monitor_type, layer, **kwargs)
-
-    def setup_poisson_monitors(self, monitor_type):
-        """
-        Setup monitors for the Poisson input layer.
-
-        Args:
-            monitor_type (str): Type of monitor to set up.
-        """
-        layer_name = "p_0"
-        group = next(
-            (
-                obj
-                for obj in self.network.objects
-                if hasattr(obj, "name") and obj.name == layer_name
-            ),
-            None,
-        )
-        if group is None:
-            raise ValueError(f"Neuron group '{layer_name}' not found.")
-        self.create_monitor(group, monitor_type, 0)
-
-    def toggle_monitoring(self, layer_number=None, monitor_type=None, enable=True):
-        """
-        Toggle monitoring for specified layers and monitor types.
-
-        Args:
-            layer_number (int, optional): Layer number to toggle monitoring for.
-                                          Defaults to None (all layers).
-            monitor_type (str, optional): Type of monitor to toggle. Defaults to None (all types).
-            enable (bool): Enable or disable monitoring. Defaults to True.
-
-        Returns:
-            str: A message indicating the status of the toggled monitors.
-=======
     def remove_monitor(self, layer, monitor_type, exc):
         """
         Remove a monitor while preserving its data.
@@ -188,7 +74,6 @@ class MonitorManager:
             layer (int): The layer number.
             monitor_type (str): The type of monitor ("spike" or "voltage").
             exc (bool): Whether the group is excitatory.
->>>>>>> jakes_working_repo
         """
         identifier = (layer, monitor_type, exc)
         monitor = self.monitors.pop(identifier, None)
@@ -197,51 +82,7 @@ class MonitorManager:
                 f"No monitor of type {monitor_type, exc} found in layer {layer}."
             )
 
-<<<<<<< HEAD
-    def get_monitors(self, layer_number=None, monitor_type=None):
-        """
-        Retrieve monitors based on specified criteria.
-
-        Args:
-            layer_number (int, optional): Layer number to retrieve monitors for. Defaults to None (all layers).
-            monitor_type (str, optional): Type of monitor to retrieve. Defaults to None (all types).
-
-        Returns:
-            list: A list of monitors matching the criteria.
-        """
-        filtered_monitors = []
-        criteria = lambda k: (
-            (layer_number is None or k[0] == layer_number)
-            and (monitor_type is None or k[1] == monitor_type)
-        )
-
-        for key, monitor in self.monitors.items():
-            if criteria(key):
-                filtered_monitors.append(monitor)
-
-        return filtered_monitors
-
-    def visualise_monitor(self, layer_number, monitor_type):
-        """
-        Visualize monitor data for a specified layer and monitor type.
-
-        Args:
-            layer_number (int): The layer number to visualize.
-            monitor_type (str): The type of monitor to visualize ('spike', 'voltage', etc.).
-
-        Returns:
-            str: A message indicating the status of the visualization or an error message
-                 if no matching monitors are found.
-        """
-        monitors = self.get_monitors(layer_number, monitor_type)
-        if not monitors:
-            return "No monitors matched the criteria."
-        else:
-            monitor = monitors[0]
-
-=======
         # Store data before removing
->>>>>>> jakes_working_repo
         if monitor_type == "spike":
             self.saved_data[identifier] = monitor.spike_trains()
         elif monitor_type == "voltage":
@@ -250,22 +91,6 @@ class MonitorManager:
                 "voltages": {i: monitor.v[i][:] for i in range(len(monitor.record))},
             }
 
-<<<<<<< HEAD
-    def bin_spikes(self, monitor, num_stimuli, length_stimuli):
-        """
-        Bin spike data into histograms based on the stimuli and their durations.
-
-        Args:
-            monitor (brian2.SpikeMonitor): The spike monitor containing spike trains.
-            num_stimuli (int): The number of stimuli to bin spikes for.
-            length_stimuli (float): The duration of each stimulus in simulation time.
-
-        Returns:
-            numpy.ndarray: A 2D array where rows represent neurons and columns represent stimulus bins.
-        """
-        spikes = monitor.spike_trains()
-        num_neurons = monitor.source.N
-=======
         self.network.remove(monitor)
 
     def get_monitor_data(self, layer, monitor_type, exc):
@@ -289,29 +114,8 @@ class MonitorManager:
             spikes = monitor.spike_trains()
 
         num_neurons = len(spikes)
->>>>>>> jakes_working_repo
         store = np.zeros((num_neurons, num_stimuli))
         bins = np.arange(0, length_stimuli * (num_stimuli + 1), length_stimuli)
-<<<<<<< HEAD
-        for key, value in spikes.items():
-            counts, edges = np.histogram(value, bins=bins)
-            store[key] = counts
-        # Ideally would happen here but layer is inaccessible
-        return store
-
-    def plot_spikes(self, layer, type, index, num_stimuli, length_stimuli):
-        """
-        Plot the histogram of spike counts for a specified neuron and stimulus bins.
-
-        Args:
-            layer (int): The layer number.
-            type (str): The type of monitor ('spike').
-            index (int): The index of the neuron to plot.
-            num_stimuli (int): The number of stimuli.
-            length_stimuli (float): The duration of each stimulus in simulation time.
-        """
-        monitor = self.get_monitors(layer, type)[0]
-=======
 
         for neuron_idx, spike_times in spikes.items():
             counts, _ = np.histogram(spike_times, bins=bins)
@@ -322,7 +126,6 @@ class MonitorManager:
     def bin_voltages(self, layer, exc, num_stimuli, length_stimuli):
         """Bin voltage data into average values per neuron and stimulus."""
         monitor = self.get_monitor_data(layer, "voltage", exc)
->>>>>>> jakes_working_repo
 
         if isinstance(monitor, dict):  # Stored voltage data
             times, voltages = monitor["times"], monitor["voltages"]
@@ -340,76 +143,6 @@ class MonitorManager:
             for i in range(num_stimuli):
                 store[neuron_idx, i] = np.mean(voltages[neuron_idx][digitized == i])
 
-<<<<<<< HEAD
-    def generate_spike_heatmap(
-        self, layer, type, num_stimuli, length_stimuli, layer_length, stimulus_index
-    ):
-        """
-        Generate a heatmap of spike activity for a specified stimulus.
-
-        Args:
-            layer (int): The layer number.
-            type (str): The type of monitor ('spike').
-            num_stimuli (int): The number of stimuli.
-            length_stimuli (float): The duration of each stimulus in simulation time.
-            layer_length (int): The side length of the layer grid.
-            stimulus_index (int): The index of the stimulus to generate the heatmap for.
-
-        Returns:
-            numpy.ndarray: A 2D array representing spike counts as a heatmap.
-        """
-        monitor = self.get_monitors(layer, type)[0]
-        if (layer, "spike", "histogram") not in self.monitor_data:
-            store = self.bin_spikes(monitor, num_stimuli, length_stimuli)
-            self.monitor_data[(layer, "spike", "histogram")] = store
-        else:
-            store = self.monitor_data[(layer, "spike", "histogram")]
-        heatmap = store[:, stimulus_index].reshape(layer_length, layer_length)
-        return heatmap
-
-    def display_spike_heatmap(
-        self, layer, type, num_stimuli, length_stimuli, layer_length, stimulus_index
-    ):
-        """
-        Display a heatmap of spike activity for a specified stimulus.
-
-        Args:
-            layer (int): The layer number.
-            type (str): The type of monitor ('spike').
-            num_stimuli (int): The number of stimuli.
-            length_stimuli (float): The duration of each stimulus in simulation time.
-            layer_length (int): The side length of the layer grid.
-            stimulus_index (int): The index of the stimulus to display the heatmap for.
-        """
-        heatmap = self.generate_spike_heatmap(
-            layer, type, num_stimuli, length_stimuli, layer_length, stimulus_index
-        )
-        plt.imshow(heatmap, cmap="hot", interpolation="nearest")
-        plt.colorbar()
-        plt.show()
-
-    def animate_spike_heatmap(
-        self, layer, type, num_stimuli, length_stimuli, layer_length
-    ):
-        """
-        Animate a sequence of heatmaps representing spike activity across stimuli.
-
-        Args:
-            layer (int): The layer number.
-            type (str): The type of monitor ('spike').
-            num_stimuli (int): The number of stimuli.
-            length_stimuli (float): The duration of each stimulus in simulation time.
-            layer_length (int): The side length of the layer grid.
-        """
-
-        fig, ax = plt.subplots()
-        heatmap = self.generate_spike_heatmap(
-            layer, type, num_stimuli, length_stimuli, layer_length, 0
-        )
-        im = ax.imshow(heatmap, cmap="hot", interpolation="nearest")
-        cbar = plt.colorbar(im, ax=ax)  # Add color bar
-        ax.set_title(f"Spike Heatmap - layer {layer}")  # Initial title
-=======
         return store
 
     def plot_raster(self, layer, exc, index_range=None):
@@ -442,7 +175,6 @@ class MonitorManager:
             raise ValueError(f"No neurons recorded in layer {layer} for spikes.")
 
         fig, ax = plt.subplots(figsize=(10, 6))
->>>>>>> jakes_working_repo
 
         def update(i):
             ax.clear()
