@@ -12,9 +12,10 @@ results/*
 brian2_trained_model_60
 # C extensions
 *.so
-
+export/*
 # Distribution / packaging
 .Python
+spikes/azure/*
 build/
 develop-eggs/
 dist/

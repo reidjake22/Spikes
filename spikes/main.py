@@ -45,9 +45,9 @@ if __name__ == "__main__":
     import code
 
     """
-    
     This is a running list of all items that need to be defined in the main function:
     """
+
     def monitoring_setup(monitor_manager, network):
         """
         This function defines what will be done during the monitor set up part of the main function
@@ -65,6 +65,7 @@ if __name__ == "__main__":
         This function defines what will be done during the analysis part of the main function
         remember you can use nonlocal to start editing variables - not sure why you would
         """
+
         # To extract synapse info
         def synapse_spec_info(synapse_specs):
             synapse_groups = synapse_specs.synapse_objects
@@ -232,13 +233,50 @@ if __name__ == "__main__":
         ctypes.windll.kernel32.SetThreadExecutionState(ES_CONTINUOUS)
         print("Sleep settings restored.")
 
+    def analysis_function_2(monitor_manager: MonitorManager, network: Network):
+        """
+        This function defines what will be done during the analysis part of the main function
+        remember you can use nonlocal to start editing variables - not sure why you would
+        """
+        # To extract synapse info
+
+        spike_monitors = {f"exc_{i}": monitor_manager.monitors[(i, "spike", True)] for i in range(N_LAYERS+1)}
+        spike_monitors.update({f"inh_{i}": monitor_manager.monitors[(i, "spike", False)] for i in range(1, N_LAYERS+1)})
+        print("Monitors created:")
+        
+        #################### 📊 Spike Heatmap Extraction 📊 ####################
+        # Extract and display all spike heatmaps
+        print("doing spike counts")
+        spike_counts = {
+            name: extract_spike_heatmap(monitor, width=image_height if "exc_0" in name else exc_neuron_specs.length if "exc" in name else inh_neuron_specs.length, n_filters=num_filters if "exc_0" in name else 1, is_input= True if "exc_0" in name else False)
+            for name, monitor in spike_monitors.items()
+        }
+        # Save spike counts to files
+        # Create directory if it doesn't exist
+        os.makedirs("untrained_counts", exist_ok=True)
+        
+        # Save each spike count array as numpy file
+        for name, spike_count in spike_counts.items():
+            save_path = os.path.join("untrained_counts", f"{NO_EPOCHS}_{name}_spike_counts.npy")
+            np.save(save_path, spike_count)
+            print(f"Saved spike counts for {name} to {save_path}")
+
+        # Also save as a single compressed file with all spike counts
+        all_counts_path = os.path.join("untrained_counts", f"all_spike_counts_{NO_EPOCHS}.npz")
+        np.savez_compressed(all_counts_path, **spike_counts)
+        print(f"Saved all spike counts to {all_counts_path}")
+        #################### 📦 Binned Spike Processing  📦 ####################
+        #################### 🛠 Interactive Debugging Shell 🛠 ####################
+        print("Entering interactive shell...")
+        ctypes.windll.kernel32.SetThreadExecutionState(ES_CONTINUOUS)
+        print("Sleep settings restored.")
     ##########GET INPUTS ############
     print("running main")
     equations_container = EquationsContainer()
     network = Network()
 
     N_LAYERS = 4  # Number of layers to create
-    NO_EPOCHS = 60
+    NO_EPOCHS = 0
     NO_TEST_EPOCHS = 10
     STIMULUS_LENGTH = 100 * ms
     NUM_INPUTS = 8
@@ -369,7 +407,6 @@ if __name__ == "__main__":
     _3d_poisson_rates = (
         gen_inputs()
     )  # This has the shape num_images, neuron_size, neuron_size, num_filters
-    absolute_3d_poisson_rates = np.abs(_3d_poisson_rates)
     print("Creating Network")
     timed_input, poisson_neurons = create_network(
         network,
@@ -396,16 +433,13 @@ if __name__ == "__main__":
     }
     ####################    MONITOR NETWORK   ####################
 
-    data = network_monitors.the_full_monty(
-        directory="results", filename="spike_data_26th_november_2024"
-    )
-
     ####################    TRAIN NETWORK   ####################
     defaultclock.dt = 0.1 * ms
-    run_training(network, namespace, STIMULUS_LENGTH, NUM_INPUTS, no_epochs=NO_EPOCHS)
+    #run_training(network, namespace, STIMULUS_LENGTH, NUM_INPUTS, no_epochs=NO_EPOCHS)
     monitoring_setup(monitor_manager, network)
     run_testing_epochs(network, namespace, TEST_STIMULUS_LENGTH, NUM_INPUTS, no_testing_epochs=NO_TEST_EPOCHS)
-    analysis_function(monitor_manager, network)
+    #analysis_function(monitor_manager, network)
+    analysis_function_2(monitor_manager, network)
     #enter interactive mode
     code.interact(local=globals())
     print("End of main")

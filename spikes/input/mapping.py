@@ -734,8 +734,6 @@ def generate_flat_poisson_inputs_from_convolved_data(convolved_data):
         new_array[image_idx] = convolved_data[image_idx].flatten()
     return new_array
 
-<<<<<<< HEAD
-=======
 import time
 
 def debug_array_shapes(**arrays):
@@ -802,16 +800,11 @@ def generate_test_train_flat_poisson(convolved_data,
 
     return activity_array, hcf
 
->>>>>>> jakes_working_repo
 
 def generate_timed_array_from_flat_poisson_inputs(
     poisson_inputs,
     beta,
-<<<<<<< HEAD
-    stimulus_exposure_time,
-=======
     hcf,
->>>>>>> jakes_working_repo
 ):
     """
     Generate a TimedArray from a 2D input array, where the input array is assumed to be
@@ -825,12 +818,6 @@ def generate_timed_array_from_flat_poisson_inputs(
     """
     num_images, num_neurons = poisson_inputs.shape
     collapsed_input_hz = poisson_inputs * beta * hertz
-<<<<<<< HEAD
-    print(f"beta:{beta}")
-    print(collapsed_input_hz)
-    timed_input = TimedArray(collapsed_input_hz, dt=stimulus_exposure_time)
-    return timed_input
-=======
     hcf = hcf * ms
     print(f"beta:{beta}")
     timed_input = TimedArray(collapsed_input_hz, dt=hcf)
@@ -890,4 +877,3 @@ def gen_inputs():
     # This has the shape num_images, neuron_size, neuron_size, num_filters
 
     return _3d_poisson_inputs
->>>>>>> jakes_working_repo
