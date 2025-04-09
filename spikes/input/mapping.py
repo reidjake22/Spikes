@@ -852,7 +852,7 @@ def gen_inputs():
     from itertools import product
 
     permutations = list(product(["c", "v"], repeat=3))
-    image_path = os.path.join("data","3N2P")
+    image_path = r"C:\Users\reidj\Dropbox\dphil\programming\spikes\spikes\data\3N2P"
 
     # Create an np array with 8 images and each size 124x124:
     images = np.zeros((8, 128, 128))

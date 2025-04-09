@@ -433,3 +433,4 @@ def create_network(
     )
 
     return timed_input, poisson_neurons
+

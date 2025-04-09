@@ -7,8 +7,7 @@ import os
 import sys
 
 # Change the working directory to the script's directory
-script_dir = os.path.dirname(os.path.abspath(__file__))
-os.chdir(script_dir)
+sys.path.insert(0, r"C:\Users\reidj\Dropbox\dphil\programming\spikes\spikes")
 
 print(f"Current working directory: {os.getcwd()}")
 
@@ -43,7 +42,7 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     import matplotlib.animation as animation
     import code
-
+    print("imports done")
     """
     This is a running list of all items that need to be defined in the main function:
     """
@@ -439,7 +438,6 @@ if __name__ == "__main__":
     monitoring_setup(monitor_manager, network)
     run_testing_epochs(network, namespace, TEST_STIMULUS_LENGTH, NUM_INPUTS, no_testing_epochs=NO_TEST_EPOCHS)
     #analysis_function(monitor_manager, network)
-    analysis_function_2(monitor_manager, network)
     #enter interactive mode
     code.interact(local=globals())
     print("End of main")
