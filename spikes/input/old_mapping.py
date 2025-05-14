@@ -470,113 +470,6 @@ class ImageMapping:
             plt.show()
 
 
-class OldImageMapping:
-    def __init__(
-        self,
-        mapping=None,
-        image_size=None,
-        neuron_size=None,
-        num_layers=None,
-        num_total_pixels=None,
-        radius=None,
-        shape=None,
-    ):
-        self.image_size = image_size
-        self.neuron_size = neuron_size
-        self.num_layers = num_layers
-        self.num_total_pixels = num_total_pixels
-        self.radius = radius
-        self.shape = shape
-        self.mapping = self.gen_mappings(
-            image_size, neuron_size, num_layers, num_total_pixels, radius, shape
-        )
-
-    def gen_mappings(
-        self, image_size, neuron_size, num_layers, num_total_pixels, radius, shape
-    ):
-        """
-        Generate a pixel mapping for neurons where each neuron is mapped to a subset of 3D pixels
-        (x, y, layer) from an image, within a radius around its corresponding position. The region can be
-        either circular or square.
-
-        Args:
-        image_size (int): The size of the image (assumed square).
-        neuron_size (int): The size of the neuron array (assumed square).
-        num_layers (int): The number of layers in the convolved image stack (number of filters).
-        num_total_pixels (int): The total number of unique pixels to sample across layers (default: 100).
-        radius (int): The radius around the neuron center in the image (default: 6).
-        shape (str): The shape of the eligible region, either "circle" or "square" (default: "circle").
-
-        Returns:
-        dict: A dictionary where each key is a (neuron_x, neuron_y) tuple and the value is
-                a list of randomly selected (x, y, layer) coordinates.
-        """
-        scale = (
-            image_size // neuron_size
-        )  # Calculate scaling from neuron grid to image grid
-        pixel_mappings = {}
-
-        # Iterate over each neuron in the neuron grid
-        for neuron_x in range(neuron_size):
-            for neuron_y in range(neuron_size):
-                # Map the neuron (neuron_x, neuron_y) to the corresponding center in the image
-                x_center = int(scale * neuron_x + scale / 2)
-                y_center = int(scale * neuron_y + scale / 2)
-
-                # Define the region bounds in the image, ensuring they stay within the image boundaries
-                x_min = max(0, x_center - radius)
-                x_max = min(image_size - 1, x_center + radius)
-                y_min = max(0, y_center - radius)
-                y_max = min(image_size - 1, y_center + radius)
-
-                # Collect pixel coordinates based on the shape
-                region_pixels = []
-                for x in range(x_min, x_max + 1):
-                    for y in range(y_min, y_max + 1):
-                        if shape == "circle":
-                            # Compute the Euclidean distance from the center
-                            distance = np.sqrt(
-                                (x - x_center) ** 2 + (y - y_center) ** 2
-                            )
-                            # Only include pixels within the circular radius
-                            if distance <= radius:
-                                region_pixels.append((x, y))
-                        elif shape == "square":
-                            # Include all pixels within the bounding box for a square
-                            region_pixels.append((x, y))
-
-                # Get the total number of available pixels in the region
-                available_pixels = (
-                    len(region_pixels) * num_layers
-                )  # Number of 3D pixels (region size x number of layers)
-
-                # Check if the requested number of pixels is greater than the available pixels
-                if num_total_pixels > available_pixels:
-                    print(
-                        f"Warning: Requested {num_total_pixels} pixels, but only {available_pixels} available for neuron ({neuron_x}, {neuron_y})."
-                    )
-                    num_samples = available_pixels  # Limit the number of samples to the available pixels
-                else:
-                    num_samples = num_total_pixels
-
-                # Set to store selected 3D coordinates (layer, x, y) without replacement
-                selected_pixels = set()
-
-                # Generate all possible combinations of (layer, x, y) coordinates
-                all_3d_coords = [
-                    (layer, x, y)
-                    for layer in range(num_layers)
-                    for x, y in region_pixels
-                ]
-
-                # Randomly sample num_samples 3D coordinates without replacement
-                selected_pixels = random.sample(all_3d_coords, num_samples)
-
-                # Store the selected 3D coordinates for this neuron
-                pixel_mappings[(neuron_x, neuron_y)] = list(selected_pixels)
-
-        return pixel_mappings
-
     def gen_inputs(self, convolved_data):
         """
         Generate neuron inputs from a 4D convolved dataset using precomputed 3D pixel mappings.
@@ -736,21 +629,6 @@ def generate_flat_poisson_inputs_from_convolved_data(convolved_data):
 
 import time
 
-def debug_array_shapes(**arrays):
-    """
-    Prints the shapes of multiple arrays with labeled dimensions.
-    Includes a time delay after each print statement for readability.
-
-    Usage:
-    debug_array_shapes(array1=array1, array2=array2, ...)
-    """
-    print("\n#### DEBUGGING ARRAY SHAPES ####\n")
-    for name, arr in arrays.items():
-        print(f"{name}: {arr.shape}")
-        time.sleep(0.5)  # Pause to make the output more readable
-    print("\n################################\n")
-
-
 def generate_test_train_flat_poisson(convolved_data,
                                                      no_epochs: int,
                                                      stimulus_exposure_time: Quantity,
@@ -789,14 +667,7 @@ def generate_test_train_flat_poisson(convolved_data,
     testing_epochs_array=testing_epochs_array,
     activity_array=activity_array
 )
-    # We now have an array of num_images x num_neurons
-    # Now we need to multiply this to get epochs & test times
-    # Find highest common factor
-    # repeat each image by stimulus_exposure_time/hcf
-    # repeat this for epoch no's
-    # give 10 test epochs
-    #   each test epoch should repeat each image by stimlus_exposure_time_test/hcf
-    # repeat by 10 epochs
+
 
     return activity_array, hcf
 

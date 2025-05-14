@@ -405,7 +405,8 @@ if __name__ == "__main__":
     print("Generating Inputs")
     _3d_poisson_rates = (
         gen_inputs()
-    )  # This has the shape num_images, neuron_size, neuron_size, num_filters
+    )  
+
     print("Creating Network")
     timed_input, poisson_neurons = create_network(
         network,
@@ -427,16 +428,14 @@ if __name__ == "__main__":
     )
     print("initialising monitor manager")
     monitor_manager = MonitorManager(network)
-    namespace = {
-        "timed_input": timed_input,
-    }
+
     ####################    MONITOR NETWORK   ####################
 
     ####################    TRAIN NETWORK   ####################
     defaultclock.dt = 0.1 * ms
     #run_training(network, namespace, STIMULUS_LENGTH, NUM_INPUTS, no_epochs=NO_EPOCHS)
     monitoring_setup(monitor_manager, network)
-    run_testing_epochs(network, namespace, TEST_STIMULUS_LENGTH, NUM_INPUTS, no_testing_epochs=NO_TEST_EPOCHS)
+    run_testing_epochs(network, TEST_STIMULUS_LENGTH, NUM_INPUTS, no_testing_epochs=NO_TEST_EPOCHS)
     #analysis_function(monitor_manager, network)
     #enter interactive mode
     code.interact(local=globals())

@@ -4,7 +4,7 @@ import sys
 import os
 import pathlib
 
-def set_project_environment(base_dir: str, name: str = None):
+def set_project_environment(base_dir: str, name: str = None) -> str:
     """
     Sets up a full project environment with directories, placeholder files,
     and a .gitignore entry to ignore data and configs folders.
@@ -19,9 +19,9 @@ def set_project_environment(base_dir: str, name: str = None):
     # Directory structure to create
     project_dirs = [
         "configs",
-        "configs/untrained",
-        "configs/trained",
+        "configs/network",
         "configs/input",
+        "configs/input/filters",
         "visualisations",
         "data",
         "results",

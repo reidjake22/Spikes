@@ -11,7 +11,7 @@ from .convolution import (
 )
 
 # Import from mapping.py
-from .mapping import (
+from .old_mapping import (
     NeuronInputs,
     ImageMapping,
     generate_inputs_from_filters,
@@ -20,9 +20,18 @@ from .mapping import (
     generate_timed_array_from_flat_poisson_inputs,
     generate_flat_poisson_inputs_from_convolved_data,
     generate_test_train_flat_poisson,
-    gen_inputs,
 )
 
+
+from . import mapping
+
+from .mapping import (
+    create_receptive_field_mapping,
+    sample_receptive_inputs,
+    generate_gabor_filters,
+    convolve_images,
+    generate_neuron_inputs_from_saved,
+)
 # Specify the items to expose in * imports
 __all__ = [
     "GaborFilter",
@@ -38,5 +47,11 @@ __all__ = [
     "generate_timed_array_from_flat_poisson_inputs",
     "generate_flat_poisson_inputs_from_convolved_data",
     "generate_test_train_flat_poisson",
-    "gen_inputs",
+    "create_receptive_field_mapping",
+    "sample_receptive_inputs",
+    "generate_gabor_filters",
+    "mapping",
+    "convolve_images",
+    "generate_neuron_inputs_from_saved",
+
 ]

@@ -1,5 +1,6 @@
 from brian2 import *
 import time
+from typing import Union
 
 """
 Module Name: synapses.py
@@ -52,7 +53,7 @@ Notes:
         UGLY STUFF BUT IT WORKS FOR NOW AND YOU NEED TO PRESS ON GLOBALLY
 """
 
-from .neurons import NeuronSpecs
+from .NeuronSpecs import NeuronSpecs
 import pickle
 import os
 
@@ -166,13 +167,13 @@ class SynapseSpecs:
         self.recent_e = efferent_type
         synapse_name = f"{afferent_type}{self.type}{efferent_type}_{layer}"
         
-        print(f"*** synapse_name: {synapse_name} ***")
-        print(f"model for {synapse_name} at creation of synapses:")
-        print(self.neuron_model)
-        print(f"on_pre for {synapse_name} at creation of synapses:")
-        print(self.pre_point)
-        print(f"on_post for {synapse_name} at creation of synapses:")
-        print(self.post_point)
+        # print(f"*** synapse_name: {synapse_name} ***")
+        # print(f"model for {synapse_name} at creation of synapses:")
+        # print(self.neuron_model)
+        # print(f"on_pre for {synapse_name} at creation of synapses:")
+        # print(self.pre_point)
+        # print(f"on_post for {synapse_name} at creation of synapses:")
+        # print(self.post_point)
         synapses = Synapses(
             afferent_group,
             efferent_group,
@@ -188,36 +189,59 @@ class SynapseSpecs:
             efferent_group,
         )
         target_network.add(synapses)
-
     def connect_synapses(
         self,
         layer,
         radius,
         avg_no_neurons,
+        storage: Union["load", "save"] = None,
+        storage_path: str = None,
     ):
         synapses = self.synapse_objects[layer][0]
         afferent_group = self.synapse_objects[layer][1]
         efferent_group = self.synapse_objects[layer][2]
         size_afferent = sqrt(afferent_group.N)
         size_efferent = sqrt(efferent_group.N)
-        # if data is not None:
-        #     print(
-        #         f"\r *** RETRIEVING DATA FOR {self.recent_a}{self.type}{self.recent_e}_{layer} ***",
-        #         flush=True,
-        #     )
-        #     for j in range(efferent_group.N):
-        #         conv_data = [int(data) for data in data[j]]
-
         print(
-            f"\r *** GENERATING DATA TO CONNECT synapses from {afferent_group.name} to {efferent_group.name} for layer {layer} ***",
+            f"\r *** Connecting synapses from {afferent_group.name} to {efferent_group.name} for layer {layer} ***",
             flush=True,
         )
+        if storage == "load":
+            try:
+                # Load the synapse data from the file
+                print(f"Loading synapse data from {storage_path}")
+                data = np.load(os.path.join(storage_path, "epoch_0", f"{layer}_{afferent_group.name}_{efferent_group.name}_synapses.npz"))
+                weights = data["arr_0"]
+                i_indices = data["arr_1"]
+                j_indices = data["arr_2"]
+                delays = data["arr_3"]
+                # Set the synapse parameters
+                synapses.connect(i=i_indices, j=j_indices)
+                synapses.w = weights
+                synapses.delay = delays
+                if self.recent_a == self.recent_e:
+                    synapses.plasticity = 1
+                return
+            except:
+                print(f"Failed to load synapse data from {storage_path}")
+                print(f"Generating new synapse data for {layer}")
+        print(f"Generating synapse data for {layer}")
+        print(f"radius: {radius}")
+        print(f"size_afferent: {size_afferent}")
+        print(f"size_efferent: {size_efferent}")
         scale = size_afferent / size_efferent
+        print(f"Scale: {scale}")
+
         # print(f"for synapses from {afferent_group.name} to {efferent_group.name} scale: {scale}")
         index_list = []  # for debugging
         index_lens = []
         print(f" radius: {radius}")
+        print(f"efferent_group.N: {efferent_group.N}")
+        count = 0
         for j in range(efferent_group.N):
+            if count % 100 == 0:
+                print(f"count: {count}")
+            count += 1
             row = efferent_group[j].row[0]
             column = efferent_group[j].column[0]
             indexes = self._get_indexes(
@@ -244,7 +268,6 @@ class SynapseSpecs:
             new_indexes = [
                 index for index in indexes if np.random.rand() < connection_probability
             ]
-
             new_index_list.append(new_indexes)
             if len(new_index_list[j]) == 0:
                 print(f"no connections for neuron {j}")
@@ -256,24 +279,6 @@ class SynapseSpecs:
         # I want the variance and average of indexes
         print(f"mean: {np.mean([len(indexes) for indexes in index_list])}")
 
-        # Create a directory for storing the data if it doesn't exist
-        # directory = "simulation_data"
-        # if not os.path.exists(directory):
-        #     os.makedirs(directory)
-
-        # # Define the file path
-        # file_path = os.path.join(directory, f"synapse_data_layer_{afferent_group.name}_{efferent_group.name}_{layer}.pkl")
-
-        # # Store the index list and new index list
-        # with open(file_path, "wb") as file:
-        #     pickle.dump({"index_list": index_list, "new_index_list": new_index_list}, file)
-        
-        # print(f"Data stored in {file_path}")
-        # time.sleep(5)
-
-
-
-
         # print(f"variance: {np.var([len(indexes) for indexes in index_list])}")
         self._set_synapse_parameters(synapses)
         if self.recent_a == self.recent_e:
@@ -283,6 +288,21 @@ class SynapseSpecs:
         else:
             synapses.w = 1
             synapses.delay = 0.1 * ms
+
+        # Store Synapse Info:
+        print("storing synapse info")
+        weights = synapses.w
+        i_indices = synapses.i
+        j_indices = synapses.j
+        delays = synapses.delay
+        epoch_dir = os.path.join(storage_path, "epoch_0")
+        os.makedirs(epoch_dir, exist_ok=True)  # create if missing
+        np.savez(
+            os.path.join(storage_path, "epoch_0", f"{layer}_{afferent_group.name}_{efferent_group.name}_synapses.npz"),
+            weights,
+            i_indices,
+            j_indices,
+            delays)
 
     # Set parameters after synapses are connected
     def _set_synapse_parameters(self, synapses):

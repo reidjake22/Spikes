@@ -1,57 +1,19 @@
 import sys
 import os
-sys.path.insert(0, r"C:\Users\reidj\Dropbox\dphil\programming\spikes\spikes\")
-
-def create_mnist_network(
-    network,
-    N_LAYERS,
-    exc_neuron_specs,
-    inh_neuron_specs,
-    RADII,
-    AVG_NO_CONNECTIONS,
-    efe_synapse_specs,
-    ele_synapse_specs,
-    ebe_synapse_specs,
-    eli_synapse_specs,
-    ile_synapse_specs,):
-
-    print("Creating Neuron Groups")
-    create_neuron_groups(
-        network,
-        N_LAYERS,
-        exc_neuron_specs,
-        inh_neuron_specs)
+sys.path.insert(0, r"C:\Users\reidj\Dropbox\dphil\programming\spikes\spikes")
     
-    print("Creating Synapse Groups")
-    create_synapse_groups(
-        network,
-        N_LAYERS,
-        RADII,
-        AVG_NO_CONNECTIONS,
-        exc_neuron_specs,
-        inh_neuron_specs,
-        efe_synapse_specs,
-        ele_synapse_specs,
-        ebe_synapse_specs,
-        eli_synapse_specs,
-        ile_synapse_specs,
-    )
-    
-
-
 if __name__ == "__main__":
     print("Imports")
     from brian2 import *
     from network import *
     from input import *
-    from tools import set_project_environment
+    from projects import *
     import numpy as np
     import matplotlib.pyplot as plt
     equations_container = EquationsContainer()
     network = Network()
     project = "mnist_class_wip"
     dir = os.path.dirname(os.path.abspath(__file__))
-    set_project_environment(dir, project)
     # Set up parameters
     N_layers = 4
     STIMULUS_LENGTH = 100 * ms
@@ -168,11 +130,13 @@ if __name__ == "__main__":
         name="ile",
         lambda_i=30 * nS,
     )
-        print("Creating Network")
+    print("Creating Network")
     
-    timed_input, poisson_neurons = create_network(
+    initialise_network_project(
+        "mnist_class_wip",
+        dir,
         network,
-        N_LAYERS,
+        4,
         exc_neuron_specs,
         inh_neuron_specs,
         RADII,
@@ -182,11 +146,6 @@ if __name__ == "__main__":
         ebe_synapse_specs,
         eli_synapse_specs,
         ile_synapse_specs,
-        stimulus_exposure_time=STIMULUS_LENGTH,
-        stimulus_exposure_time_test=TEST_STIMULUS_LENGTH,
-        _3d_poisson_rates=_3d_poisson_rates,
-        no_epochs=NO_EPOCHS,
-        no_test_epochs=NO_TEST_EPOCHS,
     )
 
-    # Now it's time to create inputs
+    
