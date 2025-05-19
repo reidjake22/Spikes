@@ -191,118 +191,160 @@ class SynapseSpecs:
         target_network.add(synapses)
     def connect_synapses(
         self,
-        layer,
-        radius,
-        avg_no_neurons,
+        layer: int,
+        radius: float,
+        avg_no_neurons: float,
         storage: Union["load", "save"] = None,
         storage_path: str = None,
-    ):
-        synapses = self.synapse_objects[layer][0]
-        afferent_group = self.synapse_objects[layer][1]
-        efferent_group = self.synapse_objects[layer][2]
-        size_afferent = sqrt(afferent_group.N)
-        size_efferent = sqrt(efferent_group.N)
-        print(
-            f"\r *** Connecting synapses from {afferent_group.name} to {efferent_group.name} for layer {layer} ***",
-            flush=True,
-        )
+    ) -> None:
+        synapses, afferent_group, efferent_group = self.synapse_objects[layer]
+
+        # 1) compute map sizes and scale
+        size_aff = int(np.sqrt(afferent_group.N))
+        size_eff = int(np.sqrt(efferent_group.N))
+        scale    = size_aff / size_eff
+
+        print(f"\r*** Connecting {afferent_group.name}→{efferent_group.name} (layer {layer}), "
+              f"radius={radius}, scale={scale} ***", flush=True)
+
+        # 2) try loading
         if storage == "load":
             try:
-                # Load the synapse data from the file
-                print(f"Loading synapse data from {storage_path}")
-                data = np.load(os.path.join(storage_path, "epoch_0", f"{layer}_{afferent_group.name}_{efferent_group.name}_synapses.npz"))
-                weights = data["arr_0"]
-                i_indices = data["arr_1"]
-                j_indices = data["arr_2"]
-                delays = data["arr_3"]
-                # Set the synapse parameters
-                synapses.connect(i=i_indices, j=j_indices)
-                synapses.w = weights
-                synapses.delay = delays
+                data = np.load(os.path.join(
+                    storage_path, "epoch_0",
+                    f"{layer}_{afferent_group.name}_{efferent_group.name}_synapses.npz"
+                ))
+                synapses.connect(i=data["arr_1"], j=data["arr_2"])
+                synapses.w     = data["arr_0"]
+                synapses.delay = data["arr_3"]
+                self._set_synapse_parameters(synapses)
                 if self.recent_a == self.recent_e:
                     synapses.plasticity = 1
                 return
-            except:
-                print(f"Failed to load synapse data from {storage_path}")
-                print(f"Generating new synapse data for {layer}")
-        print(f"Generating synapse data for {layer}")
-        print(f"radius: {radius}")
-        print(f"size_afferent: {size_afferent}")
-        print(f"size_efferent: {size_efferent}")
-        scale = size_afferent / size_efferent
-        print(f"Scale: {scale}")
+            except Exception:
+                print("Load failed, regenerating…")
 
-        # print(f"for synapses from {afferent_group.name} to {efferent_group.name} scale: {scale}")
-        index_list = []  # for debugging
-        index_lens = []
-        print(f" radius: {radius}")
-        print(f"efferent_group.N: {efferent_group.N}")
-        count = 0
-        for j in range(efferent_group.N):
-            if count % 100 == 0:
-                print(f"count: {count}")
-            count += 1
-            row = efferent_group[j].row[0]
-            column = efferent_group[j].column[0]
-            indexes = self._get_indexes(
-                row,
-                column,
-                size_afferent,
-                scale,
-                radius,
-            )
-            index_list.append(indexes)
-            index_lens.append(len(indexes))
-
-        mean = np.max(index_lens)  # was np.mean(index_lens)
-        print(f"mean: {mean}")
-        # probability to get avg_no_neurons connections
-        connection_probability = avg_no_neurons / mean
-        time.sleep(5)
-        print(f"neuron no. {j}")
-        print(f"connection_probability: {connection_probability}")
-        new_index_list = []
-        for j in range(efferent_group.N):
-            # for each item, in index_list[j] retain with a probability of connection_probability
-            indexes = index_list[j]
-            new_indexes = [
-                index for index in indexes if np.random.rand() < connection_probability
-            ]
-            new_index_list.append(new_indexes)
-            if len(new_index_list[j]) == 0:
-                print(f"no connections for neuron {j}")
-            else:
-                synapses.connect(i=new_index_list[j], j=j)
-        print(
-            f"the mean difference between original indexes and new indexes is {np.mean([len(indexes) - len(new_indexes) for indexes, new_indexes in zip(index_list, new_index_list)])}"
+        # 3) precompute the offsets & centers once
+        print("Precomputing offsets and centers")
+        self._prepare_receptive_field(size_aff, scale, radius)
+        # 4) VECTORISED receptive‐field + connect
+        N_e = efferent_group.N
+        print("precomputed")
+        # 4a) gather all rows & cols (0-based) in one shot
+        rows = efferent_group.row[:].astype(int)
+        cols = efferent_group.column[:].astype(int)
+        print("gathered rows and cols")
+        # 4b) lookup each neuron’s centre in afferent coords
+        crs = self._center_rows[rows]
+        ccs = self._center_cols[cols]
+        print("broadcasting")
+        # 4c) broadcast the circular offsets
+        all_rs = crs[:, None] + self._dr_offsets[None, :]
+        all_cs = ccs[:, None] + self._dc_offsets[None, :]
+        print("applying clippings")
+        # 4d) apply the same exclusive-window clipping
+        R      = self._rf_radius + self._rf_pad
+        rmins  = np.clip(crs - R, 0, size_aff - 1)[:, None]
+        rmaxs  = np.clip(crs + R, 0, size_aff - 1)[:, None]
+        cmins  = np.clip(ccs - R, 0, size_aff - 1)[:, None]
+        cmaxs  = np.clip(ccs + R, 0, size_aff - 1)[:, None]
+        window = (
+            (all_rs >= rmins) & (all_rs < rmaxs) &
+            (all_cs >= cmins) & (all_cs < cmaxs)
         )
-        # I want the variance and average of indexes
-        print(f"mean: {np.mean([len(indexes) for indexes in index_list])}")
-
-        # print(f"variance: {np.var([len(indexes) for indexes in index_list])}")
-        self._set_synapse_parameters(synapses)
-        if self.recent_a == self.recent_e:
-            synapses.w = "rand()"
-            synapses.delay = "1*ms + 9*ms*rand()"
-            synapses.plasticity = 1
+        print("flattening")
+        # 4e) flatten into two 1D arrays for i,j
+        flats = all_rs * size_aff + all_cs     # shape (N_e, M)
+        i_inds = flats[window]                  # all source indices
+        counts = window.sum(axis=1)             # sources per neuron
+        j_inds = np.repeat(np.arange(N_e), counts)
+        print("probabilistically culling")
+        # 5) decide which to keep
+        max_conn = counts.max()
+        print("max_conn", max_conn)
+        p = avg_no_neurons / max_conn
+        print("p", p)
+        keep = np.random.rand(i_inds.size) < p
+        print("keeping", keep.sum(), "connections")
+        # 6) one‐shot connect
+        if keep.any():
+            synapses.connect(i=i_inds[keep], j=j_inds[keep])
         else:
-            synapses.w = 1
-            synapses.delay = 0.1 * ms
+            print("Warning: no connections kept!")
 
-        # Store Synapse Info:
-        print("storing synapse info")
-        weights = synapses.w
-        i_indices = synapses.i
-        j_indices = synapses.j
-        delays = synapses.delay
-        epoch_dir = os.path.join(storage_path, "epoch_0")
-        os.makedirs(epoch_dir, exist_ok=True)  # create if missing
-        np.savez(
-            os.path.join(storage_path, "epoch_0", f"{layer}_{afferent_group.name}_{efferent_group.name}_synapses.npz"),
-            weights,
-            i_indices,
-            j_indices,
-            delays)
+        # 7) set your STDP/non‐STDP parameters and save if needed
+        self._set_synapse_parameters(synapses)
+        if storage == "save":
+            os.makedirs(os.path.join(storage_path, "epoch_0"), exist_ok=True)
+            np.savez(
+                os.path.join(storage_path, "epoch_0",
+                             f"{layer}_{afferent_group.name}_{efferent_group.name}_synapses.npz"),
+                synapses.w, synapses.i, synapses.j, synapses.delay
+            )
+
+    def _prepare_receptive_field(self,
+                                size_afferent: int,
+                                scale: float,
+                                radius: float,
+                                padding: int = 3) -> None:
+        """
+        Precompute the circular offsets and center‐lookup tables
+        so that each call to _get_indexes_precomputed is as cheap as
+        a few adds and one boolean mask.
+        """
+        self._rf_size   = int(size_afferent)
+        self._rf_scale  = scale
+        self._rf_radius = radius
+        self._rf_pad    = padding
+
+        # radius+padding defines half‐width of the square window
+        R = radius + padding
+
+        # build a full square of relative offsets [-R .. R)
+        drs, dcs = np.meshgrid(
+            np.arange(-R, R),
+            np.arange(-R, R),
+            indexing='ij'
+        )
+
+        # mask to only keep the circle of true radius
+        circle_mask = (drs**2 + dcs**2) <= radius**2
+        self._dr_offsets = drs[circle_mask]
+        self._dc_offsets = dcs[circle_mask]
+
+        # how many rows/cols in the efferent grid?
+        n = int(self._rf_size / self._rf_scale)   # → 64/1 = 64
+        centers = (scale * np.arange(n) + scale/2).astype(int)
+        self._center_rows = centers
+        self._center_cols = centers
+
+
+    def _get_indexes_precomputed(self, row: int, col: int) -> np.ndarray:
+        """
+        Super‐fast lookup of flat indices using precomputed offsets.
+        Must call _prepare_receptive_field first.
+        """
+        cr = self._center_rows[row]
+        cc = self._center_cols[col]
+
+        # absolute candidate coords
+        rs = cr + self._dr_offsets
+        cs = cc + self._dc_offsets
+
+        # clip to the same exclusive window the original used:
+        R = self._rf_radius + self._rf_pad
+        rmin = max(0, cr - R)
+        cmin = max(0, cc - R)
+
+        in_win = (
+            (rs >= rmin) & (rs <  min(self._rf_size-1, cr + R)) &
+            (cs >= cmin) & (cs <  min(self._rf_size-1, cc + R))
+        )
+
+        rs = rs[in_win]
+        cs = cs[in_win]
+        return (rs * self._rf_size + cs).astype(int)
+
 
     # Set parameters after synapses are connected
     def _set_synapse_parameters(self, synapses):
@@ -329,44 +371,6 @@ class SynapseSpecs:
                 pass
         print(f"*** Set values: {set_values} ***")
         print(f"*** Excluded values: {excluded_values} ***")
-
-    def _get_indexes(self, row, col, size_efferent, scale, radius):
-        # This is where the neuron in the post layer is centred in the previous layer
-        col_centre = int(scale * col + scale / 2)
-
-        # This is where the neuron in the post layer is centred in the previous layer
-        row_centre = int(scale * row + scale / 2)
-
-        # Define min and max values for the row and column to reduce computational load
-        col_min = max(0, col_centre - radius - 3)
-        col_max = min(size_efferent - 1, col_centre + radius + 3)
-        row_min = max(0, row_centre - radius - 3)
-        row_max = min(
-            size_efferent - 1, row_centre + radius + 3
-        )  # If 3 feels random it kinda is - just guessing it's good as it's 2 (max scale) + 1 so no cheeky stuff
-        # print(
-        #     f" row range: {row_min} - {row_max}; col range: {col_min} - {col_max}; size: {(row_min - row_max) *(col_min - col_max)}"
-        # )
-        # Create the row and column ranges
-        row_range = np.arange(row_min, row_max)
-        col_range = np.arange(col_min, col_max)
-        # print(f"row_min:{row_min}")
-        # print(f"row_max:{row_max}")
-        # Create the row and column coordinates
-        row_coords = np.repeat(row_range, len(col_range))
-        col_coords = np.tile(col_range, len(row_range))
-
-        accepted_rows = np.array([])
-        accepted_columns = np.array([])
-
-        for col, row in zip(col_coords, row_coords):
-            if (
-                np.sqrt((col - col_centre) ** 2 + (row - row_centre) ** 2) <= radius
-            ):  # HAVE CHANGED THIS!
-                accepted_rows = np.append(accepted_rows, row)
-                accepted_columns = np.append(accepted_columns, col)
-        indexes = (accepted_rows * size_efferent + accepted_columns).astype(int)
-        return indexes
 
 class SynapseSpecsInfo:
     def __init__(self, synapse_specs):

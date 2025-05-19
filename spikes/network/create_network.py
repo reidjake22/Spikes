@@ -46,9 +46,10 @@ def create_network(
     )
     print("Creating input layer")
     # Okay so now we're gonna create a new object poisson_rates that has a 3d array which already took into account a mapping. This mapping and its rates are saved somewhere.
-    num_excitatory_neurons = exc_neuron_specs.neuron_groups[1].N **2
+    num_excitatory_neurons = exc_neuron_specs.neuron_groups[1].N
+    print(f"Number of excitatory neurons: {num_excitatory_neurons}")
     poisson_neurons = NeuronGroup(num_excitatory_neurons, 'rates : Hz', threshold='rand()<rates*dt', name="p_0")
-    poisson_neurons.rates = 0 * Hz
+    poisson_neurons.rates = 1000 * Hz
     exc_neuron_specs.add_neurons(0, poisson_neurons)
     network.add(poisson_neurons)
     synapses = Synapses(

@@ -33,14 +33,10 @@ def convolve_images(
         # FFT‐based convolution over axes 1 & 2 (the spatial dims)
         convolved[i] = fftconvolve(img_stack, filters, mode='same', axes=(1, 2))
         # Step 2: Normalise each convolved image using the euclidian norm
-    if normalise:
-        # Compute the norm along spatial dimensions (1, 2)
-        norm = np.linalg.norm(
-            convolved, axis=(1, 2), keepdims=True
-        )  # Shape: (30, 1, 1, 8)
+        if normalise:
+            norms = np.linalg.norm(convolved[i], axis=(1, 2), keepdims=True)  # shape (F,1,1)
+            convolved[i] /= norms
 
-        # Normalize by broadcasting the norm across spatial dimensions
-        convolved = convolved / norm
 
     # save and return
     np.save(save_path, convolved)
