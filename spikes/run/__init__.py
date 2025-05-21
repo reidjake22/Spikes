@@ -9,6 +9,10 @@ from .train_test import (
     toggle_plasticity,
     running_network,
 )
+from .setting_wcd import (
+    save_wcd,
+    set_wcd,
+)
 
 # Specify the items to expose in * imports
 __all__ = [
@@ -23,4 +27,6 @@ __all__ = [
     "extract_binned_spike_heatmap",
     "display_spike_heatmap",
     "plot_binned_heatmaps",
+    "save_wcd",
+    "set_wcd",
 ]

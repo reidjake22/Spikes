@@ -211,7 +211,7 @@ class SynapseSpecs:
         if storage == "load":
             try:
                 data = np.load(os.path.join(
-                    storage_path, "epoch_0",
+                    storage_path,
                     f"{layer}_{afferent_group.name}_{efferent_group.name}_synapses.npz"
                 ))
                 synapses.connect(i=data["arr_1"], j=data["arr_2"])

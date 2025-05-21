@@ -13,7 +13,9 @@ def generate_neuron_inputs_from_saved(
         inputs: np.ndarray of shape (num_images, N_neurons)
     """
     # load data
+    print("convolved_path", convolved_path)
     convolved = np.load(convolved_path)  # shape (num_images, F, H, W)
+    print(convolved.shape)
     m = np.load(mapping_path)
     indices = m['indices']
     indptr = m['indptr']
