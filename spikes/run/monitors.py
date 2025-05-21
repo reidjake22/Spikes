@@ -428,3 +428,4 @@ def plot_binned_heatmaps(binned_data, filename, title_prefix):
                 spikes = item.spike_trains()
                 data[str(key[0])] = spikes
         return data
+ 

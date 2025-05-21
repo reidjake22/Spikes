@@ -12,9 +12,10 @@ results/*
 brian2_trained_model_60
 # C extensions
 *.so
-
+export/*
 # Distribution / packaging
 .Python
+spikes/azure/*
 build/
 develop-eggs/
 dist/
@@ -32,6 +33,14 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+#files in the brian_rep folder that need sorted:
+projects/brian_rep/results/*
+projects/brian_rep/weights/*
+projects/brian_rep/untrained_counters/*
+projects/brian_rep/simulation_data/*
+
+
+
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
