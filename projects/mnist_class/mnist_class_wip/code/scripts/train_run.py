@@ -492,7 +492,7 @@ for epoch in range(NO_EPOCHS):
             t_done = time.time()
             print(f" The time to do set-up was {t_run-t_start} seconds, and the time to save down that run for the network was {t_done-t_run} seconds")
 
-#device.build()
+device.build()
 
 # %%
 
