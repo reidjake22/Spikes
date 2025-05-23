@@ -1,6 +1,6 @@
 import sys
 import os
-sys.path.insert(0, r"C:\Users\reidj\Dropbox\dphil\programming\spikes\spikes")
+sys.path.insert(0, r"/home/jake/Document/Spikes/spikes")
     
 if __name__ == "__main__":
     print("Imports")

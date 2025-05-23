@@ -6,7 +6,7 @@ import os
 from glob import glob
 import cv2
 import sys
-sys.path.insert(0, r"C:\Users\reidj\Dropbox\dphil\programming\spikes\spikes")
+sys.path.insert(0, r"/home/jake/Document/Spikes/spikes")
 from network import *
 from input import *
 from projects import *
@@ -210,10 +210,10 @@ def display_neuron_inputs(neuron_inputs, cmap='hot', figsize=(12, 8)):
 
 # %%
 
-# # import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 # import tensorflow as tf
 # import tensorflow_datasets as tfds
-# # 1) Load the train split as a tf.data.Dataset of (image, label) pairs
+# 1) Load the train split as a tf.data.Dataset of (image, label) pairs
 # ds_train = tfds.load(
 #     "mnist",
 #     split="train",
@@ -243,18 +243,18 @@ def display_neuron_inputs(neuron_inputs, cmap='hot', figsize=(12, 8)):
 # ## 2.2. Load in Gabor filters & convolve images, saving them to a file location:
 
 # %%
-# filter_dir = r"C:\Users\reidj\Dropbox\dphil\programming\spikes\projects\mnist_class\mnist_class_wip\configs\input\filters"
-# gabor_filters = load_gabor_filters(filter_dir)
-# # convolved_images = convolve_images(upscaled_images, 
-# #                     gabor_filters, 
-# #                     r"C:\Users\reidj\Dropbox\dphil\programming\spikes\projects\mnist_class\mnist_class_wip\data\conv_mnist_20"
-# #                     )
+filter_dir = r"/home/jake/Document/Spikes/projects/mnist_class/mnist_class_wip/configs/input/filters"
+gabor_filters = load_gabor_filters(filter_dir)
+# convolved_images = convolve_images(upscaled_images, 
+#                     gabor_filters, 
+#                     r"C:\Users\reidj\Dropbox\dphil\programming\spikes\projects\mnist_class\mnist_class_wip\data\conv_mnist_20"
+#                     )
 
 
 # %%
 # batch_size = 50
-# conv_dir = r"C:\Users\reidj\Dropbox\dphil\programming\spikes\projects\mnist_class\mnist_class_wip\data\conv_mnist_batch\\"
-# neuron_input_dir = r"C:\Users\reidj\Dropbox\dphil\programming\spikes\projects\mnist_class\mnist_class_wip\data\neuron_input_batch\\"
+conv_dir = r"/home/jake/Document/Spikes/projects/mnist_class/mnist_class_wip/data/conv_mnist_batch/"
+neuron_input_dir = r"/home/jake/Document/Spikes/projects/mnist_class/mnist_class_wip/data/neuron_input_batch/"
 # ds_train = tfds.load(
 #     "mnist",
 #     split="train",
@@ -300,12 +300,13 @@ def display_neuron_inputs(neuron_inputs, cmap='hot', figsize=(12, 8)):
 # ## 3.1: Set up parameters
 
 # %%
-#set_device('cpp_standalone', build_on_run=False,debug=True)
+set_device('cpp_standalone', build_on_run=False,debug=True, clean=True)
+prefs.devices.cpp_standalone.openmp_threads = 8
 equations_container = EquationsContainer()
 network = Network()
 project = "mnist_class_wip"
-dir = r"C:\Users\reidj\Dropbox\dphil\programming\spikes\projects\mnist_class\mnist_class_wip\code\scripts"
-config_dir = os.path.join(dir, "..\..\configs")
+dir = r"/home/jake/Document/Spikes/projects/mnist_class/mnist_class_wip/code/scripts"
+config_dir = os.path.join(dir, os.pardir, os.pardir,"configs")
 # Set up parameters
 N_layers = 4
 STIMULUS_LENGTH = 100 * ms
@@ -469,16 +470,16 @@ import time
 NO_EPOCHS = 1 #3
 NO_BATCHES = 1 #1200
 batch_size = 10 #50
-conv_dir = r"C:\Users\reidj\Dropbox\dphil\programming\spikes\projects\mnist_class\mnist_class_wip\data\conv_mnist_batch\\"
 #     batch_name = f"batch_{batch_idx}--{batch_size}" + ".npy"
 input_layer = exc_neuron_specs.neuron_groups[0]
 input_monitor = SpikeMonitor(input_layer, name="input_monitor")
+network.add(input_monitor)
 t0 = time.time()
 for epoch in range(NO_EPOCHS):
     for batch in range(NO_BATCHES):
         convolved_images_location = conv_dir + f"batch_{batch}--{50}" + ".npy"
         neuron_inputs = generate_neuron_inputs_from_saved(convolved_images_location,
-                                    r"C:\Users\reidj\Dropbox\dphil\programming\spikes\projects\mnist_class\mnist_class_wip\configs\input\mapping.npz")
+                                    r"/home/jake/Document/Spikes/projects/mnist_class/mnist_class_wip/configs/input/mapping.npz")
         print("neuron_inputs shape:", neuron_inputs.shape)
         for item_idx in range(batch_size):
             t_start = time.time()
@@ -504,7 +505,8 @@ device.build()
 print(input_layer.rates)
 print(max(input_layer.rates))
 print(max(neuron_inputs[0]* Hz))
-
+print("input_monitor.t")
+print(input_monitor.t)
 # %%
 def extract_spike_heatmap(spike_monitor, width, n_filters=1, is_input=False):
     """
