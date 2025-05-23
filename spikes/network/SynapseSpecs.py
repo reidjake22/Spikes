@@ -210,18 +210,30 @@ class SynapseSpecs:
         # 2) try loading
         if storage == "load":
             try:
+                print(storage_path)
                 data = np.load(os.path.join(
                     storage_path,
                     f"{layer}_{afferent_group.name}_{efferent_group.name}_synapses.npz"
                 ))
-                synapses.connect(i=data["arr_1"], j=data["arr_2"])
-                synapses.w     = data["arr_0"]
-                synapses.delay = data["arr_3"]
+                print("Loading synapses from file")
+                i=data["arr_1"]
+                j=data["arr_2"]
+                print("connecting synapses")
+                synapses.connect(i=i, j=j)
+                print("setting weights and delays")
+                w     = data["arr_0"]
+                print(w)
+                synapses.w = w
+                delay = data["arr_3"]
+                print(delay)
+                synapses.delay = delay * msecond
+                print("setting synapse parameters")
                 self._set_synapse_parameters(synapses)
                 if self.recent_a == self.recent_e:
                     synapses.plasticity = 1
                 return
-            except Exception:
+            except Exception as e:
+                print(f"Error loading synapses: {e}")
                 print("Load failed, regenerating…")
 
         # 3) precompute the offsets & centers once
