@@ -1,6 +1,11 @@
 # %%
 from brian2 import *
 set_device('cpp_standalone', build_on_run=False)
+import multiprocessing
+total = multiprocessing.cpu_count()
+print(total)
+reserve = 2
+print(total-reserve)
 import numpy as np
 import os
 from glob import glob
@@ -10,11 +15,11 @@ sys.path.insert(0, r"/home/jake/Document/Spikes/spikes")
 from network import *
 from input import *
 from projects import *
-
+from run import *
 filter_dir = r"/home/jake/Document/Spikes/projects/mnist_class/mnist_class_wip/configs/input/filters"
 conv_dir = r"/home/jake/Document/Spikes/projects/mnist_class/mnist_class_wip/data/conv_mnist_batch/"
 neuron_input_dir = r"/home/jake/Document/Spikes/projects/mnist_class/mnist_class_wip/data/neuron_input_batch/"
-prefs.devices.cpp_standalone.openmp_threads = 8
+prefs.devices.cpp_standalone.openmp_threads = total-reserve
 equations_container = EquationsContainer()
 project = "mnist_class_wip"
 local_dir = r"/home/jake/Document/Spikes/projects/mnist_class/mnist_class_wip/code/scripts"
@@ -39,6 +44,44 @@ AVG_NO_CONNECTIONS = {
     "eli": {1: 10, 2: 10, 3: 10, 4: 10},
     "ile": {1: 30, 2: 30, 3: 30, 4: 30},
 }
+
+# Function to extract spikes per image time segment
+def extract_spikes_per_image(spike_monitor, image_duration, n_images, width=64):
+    """
+    Extract spikes for each image time segment
+    
+    Parameters:
+    - spike_monitor: Brian2 SpikeMonitor object
+    - image_duration: Duration per image in seconds
+    - n_images: Number of images shown
+    - width: Width of the layer (assuming square)
+    
+    Returns:
+    - List of spike count arrays for each image time segment
+    """
+    spike_heatmaps = []
+    
+    for i in range(n_images):
+        # Calculate time window for this image
+        t_start = i * image_duration 
+        t_end = (i + 1) * image_duration
+        
+        # Filter spikes in this time window
+        mask = (spike_monitor.t >= t_start*second) & (spike_monitor.t < t_end*second)
+        image_spikes_t = spike_monitor.t[mask]
+        image_spikes_i = spike_monitor.i[mask]
+        
+        # Count spikes per neuron in this window
+        neuron_count = width * width
+        spike_counts = np.zeros(neuron_count)
+        
+        for neuron_idx in image_spikes_i:
+            spike_counts[neuron_idx] += 1
+            
+        # Reshape to grid and append to results
+        spike_heatmaps.append(spike_counts.reshape(width, width))
+    
+    return spike_heatmaps
 
 
 def run_training_batch(start_batch, start_folder, end_folder ):
@@ -159,28 +202,36 @@ def run_training_batch(start_batch, start_folder, end_folder ):
     )
 
     print(defaultclock.dt)
-
     import time
-    NO_EPOCHS = 1
     NO_BATCHES = 10
     batch_size = 50 
     input_layer = exc_neuron_specs.neuron_groups[0]
-    for epoch in range(NO_EPOCHS):
-        for batch in range(NO_BATCHES):
-            current_batch = start_batch + batch
-            convolved_images_location = conv_dir + f"batch_{current_batch}--{50}" + ".npy"
-            neuron_inputs = generate_neuron_inputs_from_saved(convolved_images_location,
-                                        r"/home/jake/Document/Spikes/projects/mnist_class/mnist_class_wip/configs/input/mapping.npz")
-            print("neuron_inputs shape:", neuron_inputs.shape)
-            for item_idx in range(batch_size):
-                print(defaultclock.t)
-                inputs = neuron_inputs[item_idx]
-                input_rates = inputs * 6000 * Hz
-                input_layer.rates = input_rates
-                print("Running network for batch", batch, "item", item_idx)
-                network.run(0.250 * second, report="text", report_period=0.5* second)
+    input_timed_array = [] 
+    stimulus_time = 250*ms
+    for batch in range(NO_BATCHES):
+        current_batch = start_batch + batch
+        convolved_images_location = conv_dir + f"batch_{current_batch}--{50}" + ".npy"
+        neuron_inputs = generate_neuron_inputs_from_saved(convolved_images_location,
+                                    r"/home/jake/Document/Spikes/projects/mnist_class/mnist_class_wip/configs/input/mapping.npz")
+        print("neuron_inputs shape:", neuron_inputs.shape)
 
-    device.build(clean=True)
+        for item_idx in range(batch_size):
+            print(defaultclock.t)
+            inputs = neuron_inputs[item_idx]
+            input_rates = inputs * 6000 * Hz
+            print("Running network for batch", batch, "item", item_idx)
+            input_timed_array.append(input_rates)
+    timed_array = TimedArray(input_timed_array, dt = stimulus_time)
+    print("Running network")
+    #print(input_layer.namespace)
+    # ta = input_layer.namespace['timed_array']
+    # print(ta)
+
+    network.run(stimulus_time*len(input_timed_array), report='text', report_period=100*ms)
+    device.build(clean=True, run=False, debug=True)
+    device.run()
+
+
     print("Saving network")
     synapse_specs_list = [
         efe_synapse_specs,
@@ -195,6 +246,10 @@ def run_training_batch(start_batch, start_folder, end_folder ):
 batch_size = 50
 for epoch in range(3):
     for start in range (0, 60000, 500):
+        if not (epoch == 0 and start == 0):
+            device.reinit()
+            device.activate(build_on_run=False)
+            defaultclock.dt = 0.1*ms    # re‐set dt if non‐default
         start_batch = start // batch_size
         start_folder = f"epoch_{epoch}_item_{start}"
         end_folder = f"epoch_{epoch}_item_{start + 500}"

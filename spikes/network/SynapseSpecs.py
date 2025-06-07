@@ -1,6 +1,7 @@
 from brian2 import *
 import time
 from typing import Union
+import builtins
 
 """
 Module Name: synapses.py
@@ -216,15 +217,15 @@ class SynapseSpecs:
                     f"{layer}_{afferent_group.name}_{efferent_group.name}_synapses.npz"
                 ))
                 print("Loading synapses from file")
-                i=data["arr_1"]
-                j=data["arr_2"]
+                i=data["i"]
+                j=data["j"]
                 print("connecting synapses")
                 synapses.connect(i=i, j=j)
                 print("setting weights and delays")
-                w     = data["arr_0"]
+                w     = data["w"]
                 print(w)
                 synapses.w = w
-                delay = data["arr_3"]
+                delay = data["delay"]
                 print(delay)
                 synapses.delay = delay * msecond
                 print("setting synapse parameters")
@@ -235,6 +236,10 @@ class SynapseSpecs:
             except Exception as e:
                 print(f"Error loading synapses: {e}")
                 print("Load failed, regenerating…")
+                print("synapses failed to load, do you want to save regenerated synapses? ")
+                response = builtins.input("Type 'yes' to save, anything else to skip: ")
+                if response.lower() == 'yes':
+                    storage = "save"
 
         # 3) precompute the offsets & centers once
         print("Precomputing offsets and centers")
@@ -287,11 +292,11 @@ class SynapseSpecs:
         # 7) set your STDP/non‐STDP parameters and save if needed
         self._set_synapse_parameters(synapses)
         if storage == "save":
-            os.makedirs(os.path.join(storage_path, "epoch_0"), exist_ok=True)
+            os.makedirs(storage_path, exist_ok=True)
             np.savez(
-                os.path.join(storage_path, "epoch_0",
+                os.path.join(storage_path,
                              f"{layer}_{afferent_group.name}_{efferent_group.name}_synapses.npz"),
-                synapses.w, synapses.i, synapses.j, synapses.delay
+                w=synapses.w,i= synapses.i,j= synapses.j,delay= synapses.delay
             )
 
     def _prepare_receptive_field(self,
