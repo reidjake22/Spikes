@@ -1,0 +1,3 @@
+.venv 
+.windowsvenv 
+__pycache__ 

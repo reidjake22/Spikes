@@ -1,0 +1,6 @@
+,0
+checkpoints,"[0, 500, 1000, 1500, 2500, 5000, 7500, 10000, 20000]"
+noise_level,0
+split,test
+timestamp,2025-09-09T15:32:02.805796
+script_version,1.2_checkpoint_evolution

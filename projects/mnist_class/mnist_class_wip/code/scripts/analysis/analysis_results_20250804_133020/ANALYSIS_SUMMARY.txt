@@ -1,0 +1,21 @@
+SNN Analysis Summary Report
+==================================================
+
+Analysis completed: 2025-08-05 03:51:46
+Output directory: /home/jake/Document/Spikes/projects/mnist_class/mnist_class_wip/code/scripts/analysis/analysis_results_20250804_133020
+
+Main result files:
+- classifier_generalization/generalization_matrix.csv
+- liquid_generalization/liquid_generalization_results.csv
+- specific_information/summary_results.csv
+
+Per-checkpoint files:
+- classifier_generalization/checkpoint_*_results.csv
+- liquid_generalization/checkpoint_*_results.csv
+- specific_information/checkpoint_*_summary.csv
+
+Plots:
+- plots/classifier_generalization.png
+- plots/liquid_generalization.png
+- plots/specific_information_summary.png
+- plots/specific_info_checkpoint_*_noise_*.png (20 files)
